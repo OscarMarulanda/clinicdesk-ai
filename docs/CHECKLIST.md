@@ -51,7 +51,7 @@
 ### 2.2 Infrastructure — Claude AI Service
 - [x] `ClaudeAIService` implementing `AIServiceInterface`
 - [x] System prompt definition
-- [x] Tool schema definitions (all 8 tools)
+- [x] Tool schema definitions (6 tools — escalation tools fused into one)
 - [x] Tool execution dispatcher
 - [x] Conversation loop: message → Claude → tool calls → response
 - [x] Token usage tracking
@@ -60,9 +60,7 @@
 - [x] `SearchKnowledgeBase` use case
 - [x] `GetArticle` use case
 - [x] `ProcessChatMessage` use case (orchestrates agent + tools)
-- [x] `CreateEscalation` use case
-- [x] `ScheduleCallback` use case
-- [x] `SendEscalationEmail` use case
+- [x] `CreateEscalation` use case (fused — now handles calendar + email internally)
 - [x] `UpdateSessionNotes` use case
 - [x] `GetUserInfo` use case
 - [x] `ListCategories` use case
@@ -139,10 +137,10 @@
 ### 5.3 Escalation Workflow (end-to-end)
 - [x] Agent detects escalation triggers in conversation
 - [x] Agent collects user preferences (time, email)
-- [x] `CreateEscalation` use case creates DB record
-- [x] `ScheduleCallback` use case creates calendar event
-- [x] `SendEscalationEmail` use case sends notification
+- [x] Single `escalate_to_human` tool creates DB record + calendar event + email
 - [x] Agent confirms to user with details
+- [x] Google Calendar integration verified working (service account)
+- [x] SendGrid email integration (stub — awaiting API key)
 
 ---
 
@@ -174,12 +172,15 @@
 - [x] Staff routes (chat, own session history)
 
 ### 6.4 Admin Frontend
-- [ ] Dashboard layout with tab navigation
-- [ ] Knowledge Base tab: list + search/filter + create/edit/delete
-- [ ] Sessions tab: list + transcript viewer + metrics (tools, tokens, cost)
-- [ ] Escalations tab: list + status management
-- [ ] Analytics tab: metrics display
+- [x] Dashboard layout with tab navigation (dark sidebar, reference-design style)
+- [x] Knowledge Base tab: list + search/filter + create/edit/delete via modal
+- [x] Sessions tab: list + transcript viewer + metrics (tools, tokens, cost, per-turn breakdown)
+- [x] Escalations tab: list + detail view with transcript + status management
+- [x] Analytics tab: metric cards + top categories + escalation reasons + period selector
 - [ ] Responsive layout
+
+### 6.5 Public API
+- [x] `GET /api/sessions/:id/messages` — public endpoint for widget session restore
 
 ---
 

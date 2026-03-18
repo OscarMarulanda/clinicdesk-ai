@@ -233,11 +233,11 @@ User types message in widget
 ### Escalation Flow
 ```
 Agent detects escalation trigger
-  → ProcessChatMessage use case calls CreateEscalation use case
-    → Creates Escalation entity
-    → Saves via EscalationRepositoryBase
-    → If calendar: calls CalendarServiceInterface.create_event()
-    → If email: calls EmailServiceInterface.send()
+  → Agent calls escalate_to_human tool (single fused tool)
+    → ProcessChatMessage creates Escalation via EscalationRepositoryBase
+    → If preferred_action includes calendar: calls CalendarServiceInterface.create_event()
+    → If preferred_action includes email: calls EmailServiceInterface.send()
+    → Updates escalation record with calendar_event_id / email_sent_at
   → Returns confirmation to agent → user
 ```
 
@@ -278,3 +278,4 @@ See `docs/ADR/` for detailed records. Summary:
 3. **ADR-003**: PostgreSQL full-text search over vector embeddings — sufficient for structured articles, no external dependencies
 4. **ADR-004**: Single agent with tools over multi-agent — simpler routing, sufficient for current scope
 5. **ADR-005**: Shadow DOM chat widget — style isolation for embedding in any site
+6. **ADR-006**: Fused escalation tool — single tool creates record + calendar + email, preventing agent from skipping the DB record

@@ -113,12 +113,12 @@ Retrieves the full content of a specific article.
 
 ### 3. escalate_to_human
 
-Creates an escalation record and initiates handoff.
+Creates an escalation record AND handles callback scheduling + email notification in a single call. This is the only tool needed for escalations — calendar and email are triggered internally based on `preferred_action`.
 
 ```json
 {
   "name": "escalate_to_human",
-  "description": "Escalate the conversation to a human support representative. Use this when you cannot confidently resolve the issue, the user is frustrated, or the issue is out of scope.",
+  "description": "Escalate the conversation to a human support representative. This is the ONLY tool to use for escalations — it creates the escalation record AND handles scheduling a callback and/or sending an email to the support team based on the user's preference.",
   "input_schema": {
     "type": "object",
     "properties": {
@@ -135,6 +135,14 @@ Creates an escalation record and initiates handoff.
         "type": "string",
         "enum": ["calendar", "email", "both"],
         "description": "How to notify the support team — based on user preference"
+      },
+      "user_email": {
+        "type": "string",
+        "description": "The user's email address — required if preferred_action is 'calendar' or 'both'"
+      },
+      "preferred_time": {
+        "type": "string",
+        "description": "The user's preferred callback time (e.g., 'today after 2pm', 'tomorrow morning') — used when preferred_action is 'calendar' or 'both'"
       }
     },
     "required": ["reason", "summary", "preferred_action"]
@@ -142,65 +150,9 @@ Creates an escalation record and initiates handoff.
 }
 ```
 
-### 4. schedule_callback
+> **Design decision (2026-03-18):** Originally there were 3 separate tools: `escalate_to_human`, `schedule_callback`, and `send_escalation_email`. The agent would sometimes call `schedule_callback` without first calling `escalate_to_human`, resulting in missing escalation records. Fused all three into a single `escalate_to_human` tool that internally handles calendar + email based on `preferred_action`. This eliminates the risk of the agent skipping the escalation record.
 
-Creates a Google Calendar event for a support callback.
-
-```json
-{
-  "name": "schedule_callback",
-  "description": "Schedule a callback meeting between the user and a support representative via Google Calendar.",
-  "input_schema": {
-    "type": "object",
-    "properties": {
-      "user_email": {
-        "type": "string",
-        "description": "The user's email address for the calendar invite"
-      },
-      "preferred_time": {
-        "type": "string",
-        "description": "The user's preferred callback time (e.g., 'today after 2pm', 'tomorrow morning')"
-      },
-      "issue_summary": {
-        "type": "string",
-        "description": "Brief description of the issue for the calendar event description"
-      }
-    },
-    "required": ["user_email", "preferred_time", "issue_summary"]
-  }
-}
-```
-
-### 5. send_escalation_email
-
-Sends an email notification to the support team.
-
-```json
-{
-  "name": "send_escalation_email",
-  "description": "Send an email to the support team with a summary of the conversation and the user's issue.",
-  "input_schema": {
-    "type": "object",
-    "properties": {
-      "to_email": {
-        "type": "string",
-        "description": "Support team email address"
-      },
-      "subject": {
-        "type": "string",
-        "description": "Email subject line"
-      },
-      "conversation_summary": {
-        "type": "string",
-        "description": "Summary of the conversation including what was discussed and what the user needs"
-      }
-    },
-    "required": ["to_email", "subject", "conversation_summary"]
-  }
-}
-```
-
-### 6. update_session_notes
+### 4. update_session_notes
 
 Updates the agent's internal scratchpad for context tracking.
 
@@ -221,7 +173,7 @@ Updates the agent's internal scratchpad for context tracking.
 }
 ```
 
-### 7. get_user_info
+### 5. get_user_info
 
 Returns user profile and plan information.
 
@@ -242,7 +194,7 @@ Returns user profile and plan information.
 }
 ```
 
-### 8. list_categories
+### 6. list_categories
 
 Returns available knowledge base categories.
 
@@ -284,8 +236,9 @@ User asks question → search KB → article references a screen
 ```
 User has issue → search KB → no confident answer OR frustration detected
 → explain escalation → ask preference (callback/email)
-→ collect info → schedule_callback and/or send_escalation_email
-→ escalate_to_human → confirm to user
+→ collect info (email, preferred time)
+→ escalate_to_human (creates record + schedules callback + sends email in one call)
+→ confirm to user
 ```
 
 ### Pattern 5: Out of Scope
@@ -311,4 +264,6 @@ _This section will be updated as we test and tune the system prompt._
 
 | Date | Change | Reason |
 |------|--------|--------|
-| — | Initial prompt | Baseline |
+| 2026-03-17 | Initial prompt | Baseline |
+| 2026-03-18 | Added instruction to always call escalate_to_human first | Agent was skipping escalation record and calling schedule_callback directly |
+| 2026-03-18 | Fused escalation tools into single escalate_to_human | Eliminated the skip-record risk entirely — single tool handles record + calendar + email |

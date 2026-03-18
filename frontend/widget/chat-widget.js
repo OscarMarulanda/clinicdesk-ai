@@ -56,6 +56,7 @@
             </svg>
           </button>
           <div class="chat-window" id="chatWindow">
+            <div class="resize-handle" id="resizeHandle"></div>
             <div class="chat-header" id="chatHeader">
               <div class="header-left">
                 <div class="header-dot"></div>
@@ -131,12 +132,29 @@
         .chat-window {
           display: none; flex-direction: column;
           width: 380px; height: 520px;
+          min-width: 300px; min-height: 350px;
+          max-width: 90vw; max-height: 90vh;
           background: #fff; border-radius: 12px;
           box-shadow: 0 8px 32px rgba(0,0,0,0.15);
           overflow: hidden;
           position: absolute; bottom: 0; right: 0;
         }
         .chat-window.open { display: flex; }
+
+        /* Top-left resize handle */
+        .resize-handle {
+          position: absolute; top: 0; left: 0;
+          width: 18px; height: 18px;
+          cursor: nw-resize; z-index: 10;
+        }
+        .resize-handle::after {
+          content: '';
+          position: absolute; top: 4px; left: 4px;
+          width: 8px; height: 8px;
+          border-top: 2px solid rgba(255,255,255,0.5);
+          border-left: 2px solid rgba(255,255,255,0.5);
+          border-radius: 2px 0 0 0;
+        }
 
         /* Header */
         .chat-header {
@@ -287,6 +305,9 @@
 
       // Drag
       this._initDrag();
+
+      // Resize from top-left
+      this._initResize();
     }
 
     _initDrag() {
@@ -358,6 +379,64 @@
       document.addEventListener("touchend", endDrag);
     }
 
+    _initResize() {
+      const handle = this.shadowRoot.getElementById("resizeHandle");
+      const chatWindow = this.shadowRoot.getElementById("chatWindow");
+      let isResizing = false;
+      let startX, startY, startW, startH;
+
+      handle.addEventListener("mousedown", (e) => {
+        isResizing = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        startW = chatWindow.offsetWidth;
+        startH = chatWindow.offsetHeight;
+        e.preventDefault();
+        e.stopPropagation();
+      });
+
+      document.addEventListener("mousemove", (e) => {
+        if (!isResizing) return;
+        // Top-left: dragging left increases width, dragging up increases height
+        const dw = startX - e.clientX;
+        const dh = startY - e.clientY;
+        const newW = Math.max(300, Math.min(startW + dw, window.innerWidth * 0.9));
+        const newH = Math.max(350, Math.min(startH + dh, window.innerHeight * 0.9));
+        chatWindow.style.width = newW + "px";
+        chatWindow.style.height = newH + "px";
+      });
+
+      document.addEventListener("mouseup", () => {
+        isResizing = false;
+      });
+
+      // Touch support
+      handle.addEventListener("touchstart", (e) => {
+        isResizing = true;
+        const t = e.touches[0];
+        startX = t.clientX;
+        startY = t.clientY;
+        startW = chatWindow.offsetWidth;
+        startH = chatWindow.offsetHeight;
+        e.stopPropagation();
+      }, { passive: true });
+
+      document.addEventListener("touchmove", (e) => {
+        if (!isResizing) return;
+        const t = e.touches[0];
+        const dw = startX - t.clientX;
+        const dh = startY - t.clientY;
+        const newW = Math.max(300, Math.min(startW + dw, window.innerWidth * 0.9));
+        const newH = Math.max(350, Math.min(startH + dh, window.innerHeight * 0.9));
+        chatWindow.style.width = newW + "px";
+        chatWindow.style.height = newH + "px";
+      }, { passive: true });
+
+      document.addEventListener("touchend", () => {
+        isResizing = false;
+      });
+    }
+
     _toggle() {
       this._isOpen = !this._isOpen;
       const chatWindow = this.shadowRoot.getElementById("chatWindow");
@@ -374,6 +453,7 @@
     }
 
     _connect() {
+      const resuming = !!this._sessionId;
       const wsUrl = `${config.server}/ws/chat${this._sessionId ? "?session_id=" + this._sessionId : ""}`;
       this._ws = new WebSocket(wsUrl);
 
@@ -387,6 +467,7 @@
           case "session":
             this._sessionId = data.session_id;
             sessionStorage.setItem("clinicdesk_session_id", data.session_id);
+            if (resuming) this._loadPreviousMessages(data.session_id);
             break;
           case "typing":
             this.shadowRoot.getElementById("typing").style.display = data.status
@@ -415,6 +496,27 @@
       };
 
       this._ws.onerror = () => {};
+    }
+
+    async _loadPreviousMessages(sessionId) {
+      try {
+        const httpBase = config.server.replace(/^ws/, "http");
+        const url = `${httpBase}/api/sessions/${sessionId}/messages`;
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.messages || data.messages.length === 0) return;
+
+        // Clear the greeting and show actual conversation history
+        const messages = this.shadowRoot.getElementById("messages");
+        messages.innerHTML = "";
+
+        for (const msg of data.messages) {
+          this._addMessage(msg.role, msg.content);
+        }
+      } catch (e) {
+        // Silently fail — user just sees the greeting instead
+      }
     }
 
     _send() {

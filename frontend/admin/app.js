@@ -407,19 +407,13 @@ class App {
             <thead><tr><th>Reason</th><th>Summary</th><th>Status</th><th>Assigned To</th><th>Created</th><th></th></tr></thead>
             <tbody>
               ${data.escalations.map(e => `
-                <tr>
+                <tr class="clickable" onclick="app._loadEscalationDetail(${e.id}, '${e.session_id}')">
                   <td><span class="badge badge-warning">${REASON_LABELS[e.reason] || e.reason}</span></td>
                   <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${this._esc(e.summary)}</td>
                   <td>${this._statusBadge(e.status)}</td>
                   <td class="text-sm text-muted">${e.assigned_to || "—"}</td>
                   <td class="text-sm text-muted">${this._fmtDate(e.created_at)}</td>
-                  <td>
-                    <select class="btn btn-secondary btn-sm" style="padding:4px 8px;font-size:12px" onchange="app._updateEscalation(${e.id}, this.value)">
-                      <option value="pending" ${e.status === "pending" ? "selected" : ""}>Pending</option>
-                      <option value="in_progress" ${e.status === "in_progress" ? "selected" : ""}>In Progress</option>
-                      <option value="resolved" ${e.status === "resolved" ? "selected" : ""}>Resolved</option>
-                    </select>
-                  </td>
+                  <td><button class="btn btn-ghost btn-sm">View →</button></td>
                 </tr>
               `).join("")}
             </tbody>
@@ -434,7 +428,119 @@ class App {
       method: "PUT",
       body: JSON.stringify({ status }),
     });
-    this._loadEscalations();
+    // Reload detail if we're on a detail view, otherwise reload list
+    if (this._currentEscalationId === id) {
+      this._loadEscalationDetail(id, this._currentEscalationSessionId);
+    } else {
+      this._loadEscalations();
+    }
+  }
+
+  async _loadEscalationDetail(escalationId, sessionId) {
+    this._currentEscalationId = escalationId;
+    this._currentEscalationSessionId = sessionId;
+
+    // Fetch escalation list to get this one's data (no single-get endpoint)
+    const escData = await this._api("/api/admin/escalations?per_page=100");
+    const esc = escData?.escalations?.find(e => e.id === escalationId);
+    if (!esc) return;
+
+    // Fetch the linked session
+    const session = await this._api(`/api/admin/sessions/${sessionId}`);
+
+    document.getElementById("pageTitle").textContent = "Escalation Detail";
+    document.getElementById("headerActions").innerHTML = "";
+    const content = document.getElementById("mainContent");
+
+    content.innerHTML = `
+      <button class="back-btn" onclick="app._currentEscalationId=null;app._switchTab('escalations')">← Back to Escalations</button>
+
+      <div class="detail-panel">
+        <!-- Transcript -->
+        <div class="detail-left">
+          <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+            <div class="card-header"><span class="card-title">Conversation Transcript</span></div>
+            <div class="transcript">
+              ${session && session.messages ? session.messages.map(msg => `
+                <div class="transcript-msg ${msg.role}">
+                  <div class="transcript-bubble">${msg.role === "assistant" ? this._renderMd(msg.content) : this._esc(msg.content)}</div>
+                  <div class="transcript-time">${this._fmtTime(msg.timestamp)}</div>
+                  ${msg.tool_calls ? `<div style="margin-top:4px">${msg.tool_calls.map(t => `<span class="tool-tag">⚡ ${t}</span>`).join("")}</div>` : ""}
+                </div>
+              `).join("") : '<div class="text-muted" style="text-align:center;padding:32px">Session not found</div>'}
+            </div>
+          </div>
+        </div>
+
+        <!-- Escalation Info -->
+        <div class="detail-right">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Escalation Info</span></div>
+            <div class="card-content">
+              <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 12px;font-size:14px">
+                <span class="text-muted">Reason</span>
+                <span><span class="badge badge-warning">${REASON_LABELS[esc.reason] || esc.reason}</span></span>
+
+                <span class="text-muted">Status</span>
+                <span>${this._statusBadge(esc.status)}</span>
+
+                <span class="text-muted">Assigned To</span>
+                <span>${esc.assigned_to || "—"}</span>
+
+                <span class="text-muted">Created</span>
+                <span>${this._fmtDate(esc.created_at)}</span>
+
+                <span class="text-muted">Resolved</span>
+                <span>${esc.resolved_at ? this._fmtDate(esc.resolved_at) : "—"}</span>
+
+                ${esc.calendar_event_id ? `
+                  <span class="text-muted">Calendar Event</span>
+                  <span class="font-mono text-sm">${this._esc(esc.calendar_event_id)}</span>
+                ` : ""}
+
+                ${esc.email_sent_at ? `
+                  <span class="text-muted">Email Sent</span>
+                  <span>${this._fmtDate(esc.email_sent_at)}</span>
+                ` : ""}
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><span class="card-title">Summary</span></div>
+            <div class="card-content">
+              <p style="font-size:14px;line-height:1.6">${this._esc(esc.summary)}</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><span class="card-title">Update Status</span></div>
+            <div class="card-content">
+              <select id="escStatusSelect" style="margin-bottom:8px">
+                <option value="pending" ${esc.status === "pending" ? "selected" : ""}>Pending</option>
+                <option value="in_progress" ${esc.status === "in_progress" ? "selected" : ""}>In Progress</option>
+                <option value="resolved" ${esc.status === "resolved" ? "selected" : ""}>Resolved</option>
+              </select>
+              <button class="btn btn-primary btn-sm" onclick="app._updateEscalation(${esc.id}, document.getElementById('escStatusSelect').value)">Update</button>
+            </div>
+          </div>
+
+          ${session ? `
+          <div class="card">
+            <div class="card-header"><span class="card-title">Session</span></div>
+            <div class="card-content text-sm">
+              <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px">
+                <span class="text-muted">ID</span><span class="font-mono">${session.id.slice(0, 12)}…</span>
+                <span class="text-muted">Messages</span><span>${session.messages.length}</span>
+                <span class="text-muted">Started</span><span>${this._fmtDate(session.created_at)}</span>
+              </div>
+              <button class="btn btn-secondary btn-sm mt-4" onclick="app._loadSessionDetail('${session.id}')">View Full Session →</button>
+            </div>
+          </div>
+          ` : ""}
+        </div>
+      </div>
+    `;
   }
 
   _statusBadge(status) {

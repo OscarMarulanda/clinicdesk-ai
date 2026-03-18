@@ -49,7 +49,9 @@ TOOL_DEFINITIONS = [
     {
         "name": "escalate_to_human",
         "description": (
-            "Escalate the conversation to a human support representative. "
+            "Escalate the conversation to a human support representative. This is the ONLY tool "
+            "to use for escalations — it creates the escalation record AND handles scheduling a "
+            "callback and/or sending an email to the support team based on the user's preference. "
             "Use this when you cannot confidently resolve the issue, the user is frustrated, "
             "or the issue is out of scope."
         ),
@@ -76,57 +78,16 @@ TOOL_DEFINITIONS = [
                     "enum": ["calendar", "email", "both"],
                     "description": "How to notify the support team — based on user preference",
                 },
-            },
-            "required": ["reason", "summary", "preferred_action"],
-        },
-    },
-    {
-        "name": "schedule_callback",
-        "description": (
-            "Schedule a callback meeting between the user and a support representative "
-            "via Google Calendar."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
                 "user_email": {
                     "type": "string",
-                    "description": "The user's email address for the calendar invite",
+                    "description": "The user's email address — required if preferred_action is 'calendar' or 'both'",
                 },
                 "preferred_time": {
                     "type": "string",
-                    "description": "The user's preferred callback time (e.g., 'today after 2pm', 'tomorrow morning')",
-                },
-                "issue_summary": {
-                    "type": "string",
-                    "description": "Brief description of the issue for the calendar event description",
+                    "description": "The user's preferred callback time (e.g., 'today after 2pm', 'tomorrow morning') — used when preferred_action is 'calendar' or 'both'",
                 },
             },
-            "required": ["user_email", "preferred_time", "issue_summary"],
-        },
-    },
-    {
-        "name": "send_escalation_email",
-        "description": (
-            "Send an email to the support team with a summary of the conversation and the user's issue."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "to_email": {
-                    "type": "string",
-                    "description": "Support team email address",
-                },
-                "subject": {
-                    "type": "string",
-                    "description": "Email subject line",
-                },
-                "conversation_summary": {
-                    "type": "string",
-                    "description": "Summary of the conversation including what was discussed and what the user needs",
-                },
-            },
-            "required": ["to_email", "subject", "conversation_summary"],
+            "required": ["reason", "summary", "preferred_action"],
         },
     },
     {

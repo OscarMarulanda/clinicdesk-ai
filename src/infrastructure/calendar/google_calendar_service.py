@@ -53,28 +53,28 @@ class GoogleCalendarService(CalendarServiceInterface):
 
         event = {
             "summary": summary,
-            "description": description,
+            "description": f"{description}\n\nCallback requested by: {attendee_email}",
             "start": {
                 "dateTime": start_time.isoformat(),
-                "timeZone": "UTC",
+                "timeZone": "America/Bogota",
             },
             "end": {
                 "dateTime": end_time.isoformat(),
-                "timeZone": "UTC",
+                "timeZone": "America/Bogota",
             },
-            "attendees": [{"email": attendee_email}],
         }
 
         result = self._service.events().insert(
-            calendarId=self._calendar_id, body=event, sendUpdates="all"
+            calendarId=self._calendar_id, body=event,
         ).execute()
 
         return result.get("id", "unknown")
 
     @staticmethod
     def _parse_preferred_time(preferred_time: str) -> datetime:
-        """Simple parser for natural language time preferences."""
-        now = datetime.now(timezone.utc)
+        """Parse natural language time preferences into naive datetime (local time)."""
+        import re
+        now = datetime.now()  # local time, no timezone — Calendar API uses timeZone field
 
         lower = preferred_time.lower()
         if "tomorrow" in lower:
@@ -82,14 +82,39 @@ class GoogleCalendarService(CalendarServiceInterface):
         else:
             base = now
 
-        if "after 2" in lower or "2pm" in lower or "2 pm" in lower:
-            return base.replace(hour=14, minute=0, second=0, microsecond=0)
-        elif "after 3" in lower or "3pm" in lower or "3 pm" in lower:
-            return base.replace(hour=15, minute=0, second=0, microsecond=0)
-        elif "morning" in lower:
+        # Try to extract specific hour like "2pm", "3:30 pm", "after 4"
+        hour_match = re.search(r'(\d{1,2})(?::(\d{2}))?\s*(?:pm|p\.m\.)', lower)
+        if hour_match:
+            hour = int(hour_match.group(1))
+            minute = int(hour_match.group(2) or 0)
+            if hour < 12:
+                hour += 12
+            return base.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+        hour_match = re.search(r'(\d{1,2})(?::(\d{2}))?\s*(?:am|a\.m\.)', lower)
+        if hour_match:
+            hour = int(hour_match.group(1))
+            minute = int(hour_match.group(2) or 0)
+            if hour == 12:
+                hour = 0
+            return base.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+        # "after X" pattern
+        after_match = re.search(r'after\s+(\d{1,2})', lower)
+        if after_match:
+            hour = int(after_match.group(1))
+            if hour < 7:  # assume PM for small numbers
+                hour += 12
+            return base.replace(hour=hour, minute=0, second=0, microsecond=0)
+
+        if "morning" in lower:
             return base.replace(hour=10, minute=0, second=0, microsecond=0)
         elif "afternoon" in lower:
             return base.replace(hour=14, minute=0, second=0, microsecond=0)
+        elif "evening" in lower:
+            return base.replace(hour=17, minute=0, second=0, microsecond=0)
+        elif "soon" in lower or "asap" in lower or "now" in lower:
+            return now + timedelta(minutes=30)
         else:
             # Default to 1 hour from now
             return now + timedelta(hours=1)

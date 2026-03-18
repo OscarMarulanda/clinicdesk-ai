@@ -16,6 +16,24 @@ from src.presentation.middleware.auth import get_current_user, require_admin
 router = APIRouter(tags=["sessions"])
 
 
+# Public endpoint for widget to load previous messages on reconnect
+@router.get("/api/sessions/{session_id}/messages")
+async def get_session_messages(
+    session_id: UUID,
+    use_case: GetSessionsUseCase = Depends(get_sessions_use_case),
+):
+    try:
+        session = await use_case.get_detail(session_id)
+    except EntityNotFoundError:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {
+        "messages": [
+            {"role": m.role, "content": m.content, "timestamp": m.timestamp.isoformat()}
+            for m in session.messages
+        ]
+    }
+
+
 @router.get("/api/admin/sessions", response_model=SessionListResponse)
 async def list_sessions(
     status: str | None = None,

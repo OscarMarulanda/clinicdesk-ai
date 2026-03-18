@@ -93,3 +93,36 @@ Each entry records: date, what was completed, any deviations from the plan, and 
 **Deviations:** Added draggable + refresh features (user request). Added per-turn metrics tracking beyond original spec.
 
 **Next:** Phase 6.4 — Admin Dashboard frontend (the backend APIs are all done). Then Phase 8 — testing and polish.
+
+---
+
+## 2026-03-18 — Phase 6.4 Complete: Admin Dashboard Frontend
+
+**Completed:**
+- Admin dashboard SPA: login, sidebar nav, 4 tabs
+- Knowledge Base tab: article list with search/filter by category, create/edit/delete via modal
+- Sessions tab: session list with status badges, click-to-view detail with full transcript, token counts, cost breakdown, tool call log, per-turn breakdown table
+- Escalations tab: list with reason/status badges, click-to-view detail with conversation transcript, escalation info, status update controls, link to full session
+- Analytics tab: 6 metric cards, top categories, escalation reasons, period selector (7d/30d/90d)
+- Design follows reference-design style: dark sidebar, white cards with rounded-xl borders, Inter font, OKLch-inspired color palette, color-coded badges
+
+---
+
+## 2026-03-18 — Bug Fixes & Improvements
+
+**Bugs fixed:**
+- Session detail API crash: `tool_calls` field stored as `list[str]` but DTO declared `list[dict]` — fixed DTO to `list[str]`
+- Password hash mismatch in seed data — regenerated bcrypt hash for 'demo123'
+- Chat widget session persistence: page refresh showed blank chat despite having a stored session — added `/api/sessions/{id}/messages` public endpoint and widget now loads previous messages on reconnect
+- Google Calendar 403 error: service accounts can't invite attendees without Domain-Wide Delegation — removed attendees from event, put user email in description instead
+- Calendar events created at wrong time: parser used UTC, events showed 5 hours off — switched to local time with `America/Bogota` timezone in Calendar API
+- Escalations not always created: agent skipped `escalate_to_human` and called `schedule_callback`/`send_escalation_email` directly
+
+**Improvements:**
+- **Fused escalation tools**: Merged `schedule_callback` and `send_escalation_email` into `escalate_to_human`. Now a single tool call creates the DB record AND handles calendar + email based on `preferred_action`. Reduced from 8 tools to 6. Eliminates risk of agent skipping the escalation record.
+- **Chat widget — FAB draggable**: bubble is now draggable (click still opens chat, drag moves it)
+- **Chat widget — resizable**: top-left resize handle on chat window
+- **Escalation detail view**: click escalation row in admin dashboard to see full transcript + escalation info + status controls
+- **Calendar time parser improved**: handles more patterns (3:30pm, after 4, asap, morning, afternoon, evening)
+
+**Next:** Tests, README, write-up.

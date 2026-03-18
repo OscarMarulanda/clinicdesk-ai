@@ -196,10 +196,6 @@ class ProcessChatMessageUseCase:
                 return await self._tool_get_article(tool_input)
             elif tool_name == "escalate_to_human":
                 return await self._tool_escalate(tool_input, session_id)
-            elif tool_name == "schedule_callback":
-                return await self._tool_schedule_callback(tool_input, session_id)
-            elif tool_name == "send_escalation_email":
-                return await self._tool_send_email(tool_input)
             elif tool_name == "update_session_notes":
                 return await self._tool_update_notes(tool_input, session_id)
             elif tool_name == "get_user_info":
@@ -244,64 +240,55 @@ class ProcessChatMessageUseCase:
         }
 
     async def _tool_escalate(self, input: dict[str, Any], session_id: UUID) -> Any:
+        # 1. Always create the escalation record
         escalation = await self._escalation_repo.create(
             session_id=session_id,
             reason=input["reason"],
             summary=input["summary"],
             assigned_to=settings.support_team_email,
         )
-        return {
+
+        result: dict[str, Any] = {
             "escalation_id": escalation.id,
             "status": "created",
-            "message": "Escalation has been created and the support team has been notified.",
         }
 
-    async def _tool_schedule_callback(
-        self, input: dict[str, Any], session_id: UUID
-    ) -> Any:
-        try:
-            event_id = await self._calendar.create_event(
-                summary="ClinicDesk Support Callback",
-                description=f"Support callback requested.\n\nIssue: {input['issue_summary']}",
-                attendee_email=input["user_email"],
-                preferred_time=input["preferred_time"],
-            )
-            # Update escalation with calendar event if one exists for this session
-            escalations, _ = await self._escalation_repo.list_all()
-            for esc in escalations:
-                if esc.session_id == session_id and esc.calendar_event_id is None:
-                    await self._escalation_repo.set_calendar_event(esc.id, event_id)
-                    break
+        preferred = input.get("preferred_action", "email")
+        user_email = input.get("user_email")
+        preferred_time = input.get("preferred_time")
 
-            return {
-                "event_id": event_id,
-                "status": "scheduled",
-                "message": f"Callback scheduled. Calendar invite sent to {input['user_email']}.",
-            }
-        except Exception as e:
-            logger.error(f"Calendar scheduling error: {e}")
-            return {
-                "status": "error",
-                "message": f"Could not schedule callback: {e}. The support team has been notified and will reach out directly.",
-            }
+        # 2. Schedule callback if requested
+        if preferred in ("calendar", "both") and user_email:
+            try:
+                event_id = await self._calendar.create_event(
+                    summary="ClinicDesk Support Callback",
+                    description=f"Support callback requested.\n\nIssue: {input['summary']}",
+                    attendee_email=user_email,
+                    preferred_time=preferred_time or "next available",
+                )
+                await self._escalation_repo.set_calendar_event(escalation.id, event_id)
+                result["calendar"] = {"status": "scheduled", "event_id": event_id}
+            except Exception as e:
+                logger.error(f"Calendar scheduling error: {e}")
+                result["calendar"] = {"status": "error", "message": str(e)}
 
-    async def _tool_send_email(self, input: dict[str, Any]) -> Any:
-        try:
-            success = await self._email.send_email(
-                to_email=input["to_email"],
-                subject=input["subject"],
-                body=input["conversation_summary"],
-            )
-            return {
-                "status": "sent" if success else "failed",
-                "message": "Email sent to the support team." if success else "Failed to send email.",
-            }
-        except Exception as e:
-            logger.error(f"Email sending error: {e}")
-            return {
-                "status": "error",
-                "message": f"Could not send email: {e}",
-            }
+        # 3. Send email if requested
+        if preferred in ("email", "both"):
+            try:
+                success = await self._email.send_email(
+                    to_email=settings.support_team_email,
+                    subject=f"Escalation: {input['reason']} — {input['summary'][:80]}",
+                    body=f"Escalation ID: {escalation.id}\nReason: {input['reason']}\n\nSummary:\n{input['summary']}\n\nUser email: {user_email or 'not provided'}",
+                )
+                if success:
+                    await self._escalation_repo.set_email_sent(escalation.id)
+                result["email"] = {"status": "sent" if success else "failed"}
+            except Exception as e:
+                logger.error(f"Email sending error: {e}")
+                result["email"] = {"status": "error", "message": str(e)}
+
+        result["message"] = "Escalation created. The support team has been notified."
+        return result
 
     async def _tool_update_notes(
         self, input: dict[str, Any], session_id: UUID

@@ -210,8 +210,23 @@ Get session with full message transcript.
     }
   ],
   "metadata": {
-    "total_tokens": 3420,
-    "duration_seconds": 900
+    "total_input_tokens": 2100,
+    "total_output_tokens": 450,
+    "total_cost_usd": 0.013050,
+    "tool_call_counts": {
+      "search_knowledge_base": 2,
+      "get_article": 1
+    },
+    "turns": [
+      {
+        "turn": 1,
+        "input_tokens": 2100,
+        "output_tokens": 450,
+        "cost_usd": 0.013050,
+        "tool_calls": ["search_knowledge_base", "get_article"],
+        "tool_rounds": 1
+      }
+    ]
   },
   "created_at": "2026-03-17T09:00:00Z",
   "updated_at": "2026-03-17T09:15:00Z"
@@ -346,6 +361,34 @@ List current user's own sessions. Same shape as admin sessions list but filtered
 #### `GET /api/sessions/me/{id}`
 
 Get own session detail. Same shape as admin session detail, 404 if not owned by user.
+
+---
+
+## Public Endpoints
+
+These require no authentication — used by the chat widget.
+
+#### `GET /api/sessions/{session_id}/messages`
+
+Get messages for a session. Used by the widget to restore conversation history on page reload.
+
+**Response: `200 OK`**
+```json
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "How do I submit a pre-authorization?",
+      "timestamp": "2026-03-17T09:00:00Z"
+    },
+    {
+      "role": "assistant",
+      "content": "I can help with that...",
+      "timestamp": "2026-03-17T09:00:05Z"
+    }
+  ]
+}
+```
 
 ---
 
