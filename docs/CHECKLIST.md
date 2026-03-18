@@ -195,33 +195,102 @@
 
 ---
 
-## Phase 8: Polish & Delivery
+## Phase 8: Testing & Documentation
 
 ### 8.1 Testing
-- [ ] Unit tests — domain entities
-- [ ] Unit tests — use cases with mocked repos
-- [ ] Integration tests — repos against real PostgreSQL
-- [ ] Integration tests — REST endpoints + WebSocket via TestClient
+- [x] Unit tests — domain entities (21 tests)
+- [x] Unit tests — use cases with mocked repos (15 tests)
+- [x] Integration tests — repos against real PostgreSQL (22 tests)
+- [x] Integration tests — REST endpoints via httpx (14 tests)
 - [ ] E2E tests — multi-turn conversations, escalation flows
 
-### 8.2 End-to-End Verification
-- [ ] Multi-turn conversation flow
-- [ ] Knowledge base search accuracy
-- [ ] Escalation trigger detection
-- [ ] Calendar event creation (live test)
-- [ ] Email sending (live test)
-- [ ] Admin CRUD operations
-- [ ] Knowledge feedback loop (add article → agent finds it)
-- [ ] RBAC enforcement
-
-### 8.3 Polish
-- [ ] System prompt tuning from test results
-- [ ] Error handling for edge cases
-- [ ] Widget styling refinement
-- [ ] Loading states and error messages in UI
-
-### 8.4 Documentation & Delivery
-- [ ] README with setup instructions
-- [ ] Write-up (half page to one page)
+### 8.2 Documentation & Delivery
+- [x] README with setup instructions
+- [x] Write-up (half page to one page)
 - [ ] Demo script tested end-to-end
-- [ ] (Bonus) Deploy to Railway/Render
+
+---
+
+## Phase 9: Integrations & User Setup
+
+### 9.1 SendGrid Email Integration
+- [ ] Create SendGrid account and get API key
+- [ ] Verify sender email address
+- [ ] Add `SENDGRID_API_KEY` and `SENDGRID_FROM_EMAIL` to `.env`
+- [ ] Test escalation email sending (live)
+
+### 9.2 Real Users
+- [ ] Create real users with actual email addresses (migration or admin endpoint)
+- [ ] Test login with real user accounts
+
+### 9.3 Admin Dashboard Notifications
+- [ ] Browser push notifications for new escalations
+- [ ] Live badge counter on Escalations nav item (WebSocket or polling)
+- [ ] Optional: notification sound on new escalation
+
+---
+
+## Phase 10: Production Readiness
+
+### 10.1 Deployment
+- [ ] Choose platform (Railway / Render / Fly.io)
+- [ ] Managed PostgreSQL setup
+- [ ] Environment variables configured (secrets, API keys)
+- [ ] Google `credentials.json` → base64-encoded env var
+- [ ] HTTPS / SSL
+- [ ] Domain name (optional)
+
+### 10.2 Desktop App Embedding
+- [ ] Research how target macOS practice software handles plugins / help panels
+- [ ] WKWebView approach: create stripped-down widget page for embedding
+- [ ] Test WebSocket connection from WKWebView context
+- [ ] Alternative: standalone Electron/Tauri wrapper if web view not available
+
+### 10.3 Session Management
+- [ ] Auto-close sessions after inactivity (30 min timeout)
+- [ ] Session close cleanup (update status, finalize metadata)
+
+### 10.4 Rate Limiting
+- [ ] Rate limit WebSocket messages (per session, per IP)
+- [ ] Rate limit REST API endpoints
+- [ ] Graceful error messages when rate limited
+
+### 10.5 Prompt Caching
+- [ ] Enable Anthropic prompt caching for system prompt + tool definitions
+- [ ] Measure cost reduction
+
+---
+
+## Phase 11: Future Enhancements
+
+### 11.1 Search Quality
+- [ ] Test edge case queries and measure recall
+- [ ] Query expansion / fallback to broader search
+- [ ] Consider pgvector for semantic search alongside tsvector
+
+### 11.2 Multi-Language Support
+- [ ] Agent responds in user's language (prompt instruction)
+- [ ] Spanish knowledge base articles (priority for target market)
+- [ ] Language detection and routing
+
+### 11.3 Audit Log
+- [ ] Log all article changes (who, when, what)
+- [ ] Log all escalation status changes
+- [ ] Log all user access to patient-related data
+- [ ] Admin view for audit log
+
+### 11.4 Multi-Agent Architecture
+- [ ] Separate billing, scheduling, and technical agents
+- [ ] Router agent for intent classification
+- [ ] Per-agent guardrails and safety rules
+
+### 11.5 Voice Channel
+- [ ] Twilio integration for phone-based support
+- [ ] Deepgram for speech-to-text
+- [ ] TTS for agent responses
+
+### 11.6 Analytics Improvements
+- [ ] Knowledge gap detection (topics that trigger most escalations)
+- [ ] Surface gap reports to admins as content priorities
+- [ ] Cost tracking dashboard (daily/weekly/monthly spend)
+- [ ] User satisfaction tracking (post-conversation rating)

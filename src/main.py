@@ -13,7 +13,9 @@ from src.presentation.api.analytics import router as analytics_router
 from src.presentation.api.articles import router as articles_router
 from src.presentation.api.auth import router as auth_router
 from src.presentation.api.escalations import router as escalations_router
+from src.presentation.api.notifications import router as notifications_router
 from src.presentation.api.sessions import router as sessions_router
+from src.presentation.ws.admin import router as admin_ws_router
 from src.presentation.ws.chat import router as chat_router
 
 logging.basicConfig(level=logging.INFO)
@@ -50,9 +52,11 @@ app.add_middleware(
 # Register routers
 app.include_router(auth_router)
 app.include_router(chat_router)
+app.include_router(admin_ws_router)
 app.include_router(articles_router)
 app.include_router(sessions_router)
 app.include_router(escalations_router)
+app.include_router(notifications_router)
 app.include_router(analytics_router)
 
 # Static files for frontend

@@ -85,6 +85,7 @@ class App {
     document.getElementById("dashboard").classList.remove("hidden");
     document.getElementById("userName").textContent = this.user.name;
     this._switchTab("kb");
+    this._startNotificationPolling();
   }
 
   async _api(path, opts = {}) {
@@ -659,6 +660,139 @@ class App {
     h = h.replace(/`([^`]+)`/g, '<code style="background:rgba(0,0,0,0.06);padding:1px 4px;border-radius:3px;font-size:12px">$1</code>');
     h = h.replace(/\n/g, "<br>");
     return h;
+  }
+
+  // ── Notifications ─────────────────────────────────────
+
+  _startNotificationPolling() {
+    this._pollNotifications();
+    this._connectAdminWS();
+  }
+
+  _connectAdminWS() {
+    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${wsProtocol}//${window.location.host}/ws/admin`;
+    this._adminWs = new WebSocket(wsUrl);
+
+    this._adminWs.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === "notification") {
+        this._pollNotifications();
+        // If currently on escalations tab, refresh the list
+        if (this.currentTab === "escalations") {
+          this._loadEscalations();
+        }
+      }
+    };
+
+    this._adminWs.onclose = () => {
+      // Reconnect after 3 seconds
+      setTimeout(() => {
+        if (this.token) this._connectAdminWS();
+      }, 3000);
+    };
+
+    this._adminWs.onerror = () => {};
+
+    // Keep alive with pings every 30 seconds
+    this._adminPingInterval = setInterval(() => {
+      if (this._adminWs?.readyState === WebSocket.OPEN) {
+        this._adminWs.send("ping");
+      }
+    }, 30000);
+  }
+
+  async _pollNotifications() {
+    const data = await this._api("/api/admin/notifications/count");
+    if (!data) return;
+    const badge = document.getElementById("notifBadge");
+    if (data.unread > 0) {
+      badge.textContent = data.unread > 99 ? "99+" : data.unread;
+      badge.classList.remove("hidden");
+    } else {
+      badge.classList.add("hidden");
+    }
+  }
+
+  async toggleNotifications() {
+    const dropdown = document.getElementById("notifDropdown");
+    const isOpen = !dropdown.classList.contains("hidden");
+    if (isOpen) {
+      dropdown.classList.add("hidden");
+      return;
+    }
+
+    // Load notifications
+    const data = await this._api("/api/admin/notifications?limit=20");
+    if (!data) return;
+
+    const list = document.getElementById("notifList");
+    if (data.notifications.length === 0) {
+      list.innerHTML = '<div class="text-muted text-sm" style="padding:24px;text-align:center">No notifications</div>';
+    } else {
+      list.innerHTML = data.notifications.map(n => `
+        <div class="notif-item ${n.is_read ? "" : "unread"}" onclick="app._handleNotifClick(${n.id}, '${n.reference_type}', ${n.reference_id})">
+          <div class="notif-dot ${n.is_read ? "read" : ""}"></div>
+          <div class="notif-item-content">
+            <div class="notif-item-title">${this._esc(n.title)}</div>
+            <div class="notif-item-msg">${this._esc(n.message)}</div>
+            <div class="notif-item-time">${this._fmtTimeAgo(n.created_at)}</div>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    dropdown.classList.remove("hidden");
+
+    // Close on outside click
+    const closeHandler = (e) => {
+      if (!document.getElementById("notifWrapper")?.contains(e.target)) {
+        dropdown.classList.add("hidden");
+        document.removeEventListener("click", closeHandler);
+      }
+    };
+    setTimeout(() => document.addEventListener("click", closeHandler), 0);
+  }
+
+  async _handleNotifClick(notifId, refType, refId) {
+    // Mark as read
+    await this._api(`/api/admin/notifications/${notifId}/read`, { method: "POST" });
+    document.getElementById("notifDropdown").classList.add("hidden");
+    this._pollNotifications();
+
+    // Navigate to the referenced item
+    if (refType === "escalation" && refId) {
+      // Find the escalation's session_id
+      const escData = await this._api("/api/admin/escalations?per_page=100");
+      const esc = escData?.escalations?.find(e => e.id === refId);
+      if (esc) {
+        this._switchTab("escalations");
+        setTimeout(() => this._loadEscalationDetail(refId, esc.session_id), 100);
+      } else {
+        this._switchTab("escalations");
+      }
+    }
+  }
+
+  async markAllRead() {
+    await this._api("/api/admin/notifications/read-all", { method: "POST" });
+    this._pollNotifications();
+    this.toggleNotifications(); // close and reopen to refresh
+    this.toggleNotifications();
+  }
+
+  _fmtTimeAgo(iso) {
+    const now = new Date();
+    const date = new Date(iso);
+    const seconds = Math.floor((now - date) / 1000);
+    if (seconds < 60) return "just now";
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}d ago`;
+    return this._fmtDate(iso);
   }
 }
 

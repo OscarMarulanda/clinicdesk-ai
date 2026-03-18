@@ -67,6 +67,7 @@ class ProcessChatMessageUseCase:
         total_input_tokens = 0
         total_output_tokens = 0
         tool_calls_made: list[str] = []
+        all_text_parts: list[str] = []
 
         response = await self._ai.process_message(
             message=message,
@@ -76,6 +77,8 @@ class ProcessChatMessageUseCase:
         )
         total_input_tokens += response["usage"]["input_tokens"]
         total_output_tokens += response["usage"]["output_tokens"]
+        if response["content"]:
+            all_text_parts.append(response["content"])
 
         rounds = 0
         while response["stop_reason"] == "tool_use" and rounds < MAX_TOOL_ROUNDS:
@@ -117,9 +120,11 @@ class ProcessChatMessageUseCase:
             )
             total_input_tokens += response["usage"]["input_tokens"]
             total_output_tokens += response["usage"]["output_tokens"]
+            if response["content"]:
+                all_text_parts.append(response["content"])
 
-        # Extract final text response
-        agent_text = response["content"]
+        # Combine all text from across the tool loop
+        agent_text = "\n\n".join(all_text_parts)
 
         # Save messages to session
         assistant_msg = {
@@ -256,6 +261,14 @@ class ProcessChatMessageUseCase:
         preferred = input.get("preferred_action", "email")
         user_email = input.get("user_email")
         preferred_time = input.get("preferred_time")
+        reason_labels = {
+            "knowledge_gap": "Knowledge Gap",
+            "user_frustration": "User Frustration",
+            "out_of_scope": "Out of Scope",
+            "billing_dispute": "Billing Dispute",
+            "account_change": "Account Change",
+        }
+        reason_label = reason_labels.get(input["reason"], input["reason"])
 
         # 2. Schedule callback if requested
         if preferred in ("calendar", "both") and user_email:
@@ -272,20 +285,73 @@ class ProcessChatMessageUseCase:
                 logger.error(f"Calendar scheduling error: {e}")
                 result["calendar"] = {"status": "error", "message": str(e)}
 
-        # 3. Send email if requested
-        if preferred in ("email", "both"):
-            try:
-                success = await self._email.send_email(
-                    to_email=settings.support_team_email,
-                    subject=f"Escalation: {input['reason']} — {input['summary'][:80]}",
-                    body=f"Escalation ID: {escalation.id}\nReason: {input['reason']}\n\nSummary:\n{input['summary']}\n\nUser email: {user_email or 'not provided'}",
+        # 3. Always send email — to support team and to user (if email provided)
+        try:
+            admin_body = (
+                f"A new escalation has been created and requires attention.\n\n"
+                f"Reason: {reason_label}\n"
+                f"Escalation ID: {escalation.id}\n"
+                f"User Email: {user_email or 'Not provided'}\n\n"
+                f"--- Summary ---\n\n"
+                f"{input['summary']}\n"
+            )
+            success = await self._email.send_email(
+                to_email=settings.support_team_email,
+                subject=f"[ClinicDesk] New Escalation — {reason_label}",
+                body=admin_body,
+            )
+            if success:
+                await self._escalation_repo.set_email_sent(escalation.id)
+            result["email"] = {"status": "sent" if success else "failed"}
+
+            # Also notify the user who escalated
+            if user_email:
+                user_body = (
+                    f"Hi,\n\n"
+                    f"Your support request has been escalated to our team. "
+                    f"Here's a summary of what we have on file:\n\n"
+                    f"Reason: {reason_label}\n"
+                    f"Reference #: {escalation.id}\n\n"
+                    f"--- Summary ---\n\n"
+                    f"{input['summary']}\n\n"
+                    f"A member of our support team will be in touch shortly.\n\n"
+                    f"— ClinicDesk Support"
                 )
-                if success:
-                    await self._escalation_repo.set_email_sent(escalation.id)
-                result["email"] = {"status": "sent" if success else "failed"}
-            except Exception as e:
-                logger.error(f"Email sending error: {e}")
-                result["email"] = {"status": "error", "message": str(e)}
+                await self._email.send_email(
+                    to_email=user_email,
+                    subject=f"[ClinicDesk] Your support request has been escalated (#{escalation.id})",
+                    body=user_body,
+                )
+        except Exception as e:
+            logger.error(f"Email sending error: {e}")
+            result["email"] = {"status": "error", "message": str(e)}
+
+        # 4. Create admin notification
+        notif_title = f"New Escalation: {reason_label}"
+        notif_message = input["summary"][:200]
+        try:
+            await self._escalation_repo._pool.execute(
+                """INSERT INTO notifications (type, title, message, reference_id, reference_type)
+                   VALUES ('escalation', $1, $2, $3, 'escalation')""",
+                notif_title,
+                notif_message,
+                escalation.id,
+            )
+        except Exception as e:
+            logger.error(f"Notification creation error: {e}")
+
+        # Push to connected admin dashboards in real time
+        try:
+            from src.presentation.ws.admin import broadcast_to_admins
+            await broadcast_to_admins({
+                "type": "notification",
+                "title": notif_title,
+                "message": notif_message,
+                "reference_id": escalation.id,
+                "reference_type": "escalation",
+            })
+        except Exception as e:
+            logger.error(f"Admin broadcast error: {e}")
 
         result["message"] = "Escalation created. The support team has been notified."
         return result

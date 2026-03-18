@@ -64,7 +64,26 @@
     <div class="main">
       <header class="main-header">
         <h1 id="pageTitle">Knowledge Base</h1>
-        <div id="headerActions"></div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div id="headerActions"></div>
+          <div class="notif-wrapper" id="notifWrapper">
+            <button class="btn btn-ghost btn-icon" id="notifBell" onclick="app.toggleNotifications()" style="position:relative">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+              <span class="notif-badge hidden" id="notifBadge">0</span>
+            </button>
+            <div class="notif-dropdown hidden" id="notifDropdown">
+              <div class="notif-dropdown-header">
+                <span style="font-weight:600;font-size:14px">Notifications</span>
+                <button class="btn btn-ghost btn-sm" onclick="app.markAllRead()" style="font-size:12px">Mark all read</button>
+              </div>
+              <div class="notif-list" id="notifList">
+                <div class="text-muted text-sm" style="padding:24px;text-align:center">No notifications</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </header>
 
       <div class="main-content" id="mainContent">
