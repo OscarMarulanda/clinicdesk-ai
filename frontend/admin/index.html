@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ClinicDesk AI — Admin Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Login Screen -->
+  <div id="loginScreen" class="modal-overlay" style="background:var(--bg)">
+    <div class="modal" style="width:400px">
+      <div class="modal-header"><h2>ClinicDesk Admin</h2><div></div></div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="loginEmail" value="admin@clinicdesk.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="loginPassword" value="demo123">
+        </div>
+        <div id="loginError" style="color:var(--destructive);font-size:13px;margin-bottom:8px" class="hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="app.login()" style="width:100%">Sign In</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard" class="app hidden">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">C</div>
+        <span class="sidebar-brand">ClinicDesk</span>
+      </div>
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-tab="kb">
+          <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          Knowledge Base
+        </button>
+        <button class="nav-item" data-tab="sessions">
+          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Sessions
+        </button>
+        <button class="nav-item" data-tab="escalations">
+          <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Escalations
+        </button>
+        <button class="nav-item" data-tab="analytics">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Analytics
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-user" id="userName">Admin</div>
+        <button class="sidebar-logout" onclick="app.logout()">Sign out</button>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <div class="main">
+      <header class="main-header">
+        <h1 id="pageTitle">Knowledge Base</h1>
+        <div id="headerActions"></div>
+      </header>
+
+      <div class="main-content" id="mainContent">
+        <!-- Dynamic content rendered by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Article Modal -->
+  <div id="articleModal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="articleModalTitle">New Article</h2>
+        <button class="btn btn-ghost btn-icon" onclick="app.closeArticleModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Title</label>
+          <input type="text" id="articleTitle" placeholder="Article title">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select id="articleCategory">
+            <option value="scheduling">Scheduling</option>
+            <option value="billing_coding">Billing & Coding</option>
+            <option value="insurance_claims">Insurance & Claims</option>
+            <option value="patient_records">Patient Records</option>
+            <option value="reporting_analytics">Reporting & Analytics</option>
+            <option value="technical_troubleshooting">Technical / Troubleshooting</option>
+            <option value="account_plans">Account & Plans</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Content (Markdown)</label>
+          <textarea id="articleContent" rows="12" placeholder="Write article content in Markdown..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="app.closeArticleModal()">Cancel</button>
+        <button class="btn btn-primary" id="articleSaveBtn" onclick="app.saveArticle()">Save Article</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
