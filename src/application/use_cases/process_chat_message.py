@@ -207,8 +207,6 @@ class ProcessChatMessageUseCase:
                 return await self._tool_escalate(tool_input, session_id)
             elif tool_name == "update_session_notes":
                 return await self._tool_update_notes(tool_input, session_id)
-            elif tool_name == "get_user_info":
-                return await self._tool_get_user_info(tool_input)
             elif tool_name == "list_categories":
                 return await self._tool_list_categories()
             else:
@@ -475,21 +473,6 @@ class ProcessChatMessageUseCase:
             context["notes"] = input["notes"]
             await self._session_repo.update_context(session_id, context)
         return {"status": "updated"}
-
-    async def _tool_get_user_info(self, input: dict[str, Any]) -> Any:
-        try:
-            user_id = int(input["user_id"])
-        except (ValueError, TypeError):
-            return {"error": "Invalid user ID"}
-        user = await self._user_repo.get_by_id(user_id)
-        if user is None:
-            return {"error": "User not found"}
-        return {
-            "id": user.id,
-            "email": user.email,
-            "name": user.name,
-            "role": user.role.value,
-        }
 
     async def _tool_list_categories(self) -> Any:
         categories = await self._knowledge_repo.list_categories()

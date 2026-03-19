@@ -169,28 +169,7 @@ Updates the agent's internal scratchpad for context tracking.
 }
 ```
 
-### 6. get_user_info
-
-Returns user profile and plan information.
-
-```json
-{
-  "name": "get_user_info",
-  "description": "Get the user's profile and subscription plan information. Use this to personalize support and check what features are available on their plan.",
-  "input_schema": {
-    "type": "object",
-    "properties": {
-      "user_id": {
-        "type": "string",
-        "description": "The user's ID"
-      }
-    },
-    "required": ["user_id"]
-  }
-}
-```
-
-### 7. list_categories
+### 6. list_categories
 
 Returns available knowledge base categories.
 

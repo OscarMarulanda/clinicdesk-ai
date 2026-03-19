@@ -126,23 +126,6 @@ TOOL_DEFINITIONS = [
         },
     },
     {
-        "name": "get_user_info",
-        "description": (
-            "Get the user's profile and subscription plan information. "
-            "Use this to personalize support and check what features are available on their plan."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "user_id": {
-                    "type": "string",
-                    "description": "The user's ID",
-                },
-            },
-            "required": ["user_id"],
-        },
-    },
-    {
         "name": "list_categories",
         "description": (
             "List all available knowledge base categories. "

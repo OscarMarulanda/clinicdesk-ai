@@ -103,7 +103,7 @@ Dependencies always point inward: Presentation → Application → Domain ← In
 - Session persistence across page reloads
 - Auto-reconnect on connection loss
 
-### Agent Tools (7)
+### Agent Tools (6)
 | Tool | Purpose |
 |------|---------|
 | `search_knowledge_base` | Full-text search across 67 articles |
@@ -111,7 +111,6 @@ Dependencies always point inward: Presentation → Application → Domain ← In
 | `check_availability` | Check calendar for open callback slots (read-only) |
 | `escalate_to_human` | Create escalation + book callback + send emails (fused) |
 | `update_session_notes` | Agent scratchpad for context |
-| `get_user_info` | User profile and plan info |
 | `list_categories` | Browse knowledge base categories |
 
 ### Defensive Calendar Booking
