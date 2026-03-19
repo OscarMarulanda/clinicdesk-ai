@@ -47,13 +47,31 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "check_availability",
+        "description": (
+            "Check the support team's calendar for available callback slots. "
+            "This only checks — it does NOT create anything. Use this when the user "
+            "wants a callback so you can show them available times to choose from."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "preferred_time": {
+                    "type": "string",
+                    "description": "The user's preferred callback time (e.g., 'tomorrow at 4pm')",
+                },
+            },
+            "required": ["preferred_time"],
+        },
+    },
+    {
         "name": "escalate_to_human",
         "description": (
-            "Escalate the conversation to a human support representative. This is the ONLY tool "
-            "to use for escalations — it creates the escalation record AND handles scheduling a "
-            "callback and/or sending an email to the support team based on the user's preference. "
-            "Use this when you cannot confidently resolve the issue, the user is frustrated, "
-            "or the issue is out of scope."
+            "Create an escalation, book the callback, and send email notifications — all in one step. "
+            "This is the ONLY tool that creates records and books calendar events. "
+            "If the user wants a callback, you MUST have already called check_availability and "
+            "gotten the user's slot choice BEFORE calling this tool. Pass the chosen slot's exact "
+            "'start' value as confirmed_time."
         ),
         "input_schema": {
             "type": "object",
@@ -71,20 +89,20 @@ TOOL_DEFINITIONS = [
                 },
                 "summary": {
                     "type": "string",
-                    "description": "A concise summary of the issue and what has been attempted so far",
+                    "description": "A concise summary of the issue",
                 },
                 "preferred_action": {
                     "type": "string",
                     "enum": ["calendar", "email", "both"],
-                    "description": "How to notify the support team — based on user preference",
+                    "description": "How to notify the support team",
                 },
                 "user_email": {
                     "type": "string",
-                    "description": "The user's email address — required if preferred_action is 'calendar' or 'both'",
+                    "description": "The user's email address",
                 },
-                "preferred_time": {
+                "confirmed_time": {
                     "type": "string",
-                    "description": "The user's preferred callback time (e.g., 'today after 2pm', 'tomorrow morning') — used when preferred_action is 'calendar' or 'both'",
+                    "description": "The exact 'start' value from the slot the user chose from check_availability. Required when preferred_action is 'calendar' or 'both'.",
                 },
             },
             "required": ["reason", "summary", "preferred_action"],

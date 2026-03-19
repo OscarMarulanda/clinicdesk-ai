@@ -126,3 +126,36 @@ Each entry records: date, what was completed, any deviations from the plan, and 
 - **Calendar time parser improved**: handles more patterns (3:30pm, after 4, asap, morning, afternoon, evening)
 
 **Next:** Tests, README, write-up.
+
+---
+
+## 2026-03-18 — Phase 8 Complete: Tests, README, Write-up
+
+**Completed:**
+- 72 tests across 4 layers (domain, application, infrastructure, presentation)
+- pytest + pytest-asyncio with session-scoped event loop for DB integration tests
+- README with quick start, architecture overview, feature list, embed instructions
+- Write-up covering problem, solution, design decisions, future enhancements
+
+---
+
+## 2026-03-18 — Phase 9 Partial: Integrations & Notifications
+
+**Completed:**
+- **SendGrid live**: API key configured, emails sending to both admin and user on escalation
+- **Real users**: Oscar Marulanda as admin (unal.edu.co) and staff (gmail)
+- **Admin notifications**: bell icon with red unread badge, dropdown with notification list, click navigates to escalation detail
+- **Real-time push**: Admin WebSocket (`/ws/admin`) broadcasts notifications instantly — no polling delay
+- **Email structure**: clean subject line, structured body, user gets confirmation email with reference number
+- **Email always sent**: regardless of user's preferred_action (calendar/email/both)
+
+**Bugs fixed:**
+- Empty chat bubble: agent text was lost across tool loop rounds — now accumulates all text parts
+- `reason_label` undefined in email code — moved definition above email section
+- Email subject contained full summary — cleaned up to short label only
+
+**Deviations:**
+- Originally planned identify form in chat widget for auth — decided against adding friction, agent collects email naturally during escalation instead
+- Notifications use WebSocket push instead of polling (user requested instant updates)
+
+**Next:** Deployment, desktop embedding research, session management, prompt caching.

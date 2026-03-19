@@ -11,6 +11,7 @@ from src.infrastructure.database.connection import close_pool, get_pool
 from src.infrastructure.email.sendgrid_service import SendGridEmailService
 from src.presentation.api.analytics import router as analytics_router
 from src.presentation.api.articles import router as articles_router
+from src.presentation.api.ingest import router as ingest_router
 from src.presentation.api.auth import router as auth_router
 from src.presentation.api.escalations import router as escalations_router
 from src.presentation.api.notifications import router as notifications_router
@@ -29,6 +30,14 @@ async def lifespan(app: FastAPI):
     app.state.ai_service = ClaudeAIService()
     app.state.calendar_service = GoogleCalendarService()
     app.state.email_service = SendGridEmailService()
+
+    # Close stale sessions (active with no activity in 30+ minutes)
+    await pool.execute(
+        """UPDATE sessions SET status = 'closed', updated_at = NOW()
+           WHERE status = 'active'
+           AND updated_at < NOW() - INTERVAL '30 minutes'"""
+    )
+
     yield
     # Shutdown
     await close_pool()
@@ -54,14 +63,22 @@ app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(admin_ws_router)
 app.include_router(articles_router)
+app.include_router(ingest_router)
 app.include_router(sessions_router)
 app.include_router(escalations_router)
 app.include_router(notifications_router)
 app.include_router(analytics_router)
 
 # Static files for frontend
-app.mount("/static/widget", StaticFiles(directory="frontend/widget"), name="widget")
-app.mount("/static/admin", StaticFiles(directory="frontend/admin"), name="admin")
+app.mount("/static/widget", StaticFiles(directory="frontend/widget", html=True), name="widget")
+app.mount("/static/admin", StaticFiles(directory="frontend/admin", html=True), name="admin")
+
+
+from fastapi.responses import FileResponse
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return FileResponse("frontend/favicon.svg", media_type="image/svg+xml")
 
 
 @app.get("/health")

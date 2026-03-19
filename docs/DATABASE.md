@@ -114,6 +114,23 @@ PostgreSQL database accessed exclusively through the repository layer via asyncp
 | is_available | BOOLEAN | NOT NULL, DEFAULT true | Availability for routing |
 | created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | |
 
+### notifications
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| id | SERIAL | PRIMARY KEY | |
+| type | VARCHAR(50) | NOT NULL, DEFAULT 'escalation' | Notification type |
+| title | VARCHAR(500) | NOT NULL | Short title |
+| message | TEXT | NOT NULL | Notification body |
+| reference_id | INTEGER | NULL | ID of referenced entity |
+| reference_type | VARCHAR(50) | NULL | Entity type ('escalation') |
+| is_read | BOOLEAN | NOT NULL, DEFAULT false | Read status |
+| created_at | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | |
+
+**Indexes:**
+- `idx_notifications_is_read` — B-tree on `is_read`
+- `idx_notifications_created_at` — B-tree on `created_at`
+
 ## Migrations
 
 Located in `migrations/` directory. Numbered sequentially.
@@ -123,6 +140,8 @@ Located in `migrations/` directory. Numbered sequentially.
 | `001_initial.sql` | Create all tables, indexes, triggers |
 | `002_seed_knowledge_base.sql` | Insert all knowledge base articles |
 | `003_seed_users_providers.sql` | Insert demo users and providers |
+| `004_real_users.sql` | Real user accounts |
+| `005_notifications.sql` | Notifications table for admin dashboard |
 
 All migrations must be idempotent — use `CREATE TABLE IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`, `INSERT ... ON CONFLICT DO NOTHING` where appropriate.
 
@@ -171,7 +190,7 @@ sessions            knowledge_articles
   │ 1:N
   │
   ▼
-escalations
+escalations ──── notifications (reference_id → escalation.id)
 
 providers (standalone — used for escalation routing)
 ```

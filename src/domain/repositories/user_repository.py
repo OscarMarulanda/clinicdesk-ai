@@ -25,3 +25,7 @@ class UserRepositoryBase(ABC):
     @abstractmethod
     async def list_all(self) -> list[User]:
         ...
+
+    @abstractmethod
+    async def list_by_role(self, role: UserRole) -> list[User]:
+        ...

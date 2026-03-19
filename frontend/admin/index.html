@@ -10,8 +10,12 @@
   <!-- Login Screen -->
   <div id="loginScreen" class="modal-overlay" style="background:var(--bg)">
     <div class="modal" style="width:400px">
-      <div class="modal-header"><h2>ClinicDesk Admin</h2><div></div></div>
+      <div class="modal-header"><h2 id="authTitle">ClinicDesk Admin</h2><div></div></div>
       <div class="modal-body">
+        <div class="form-group hidden" id="registerNameGroup">
+          <label class="form-label">Name</label>
+          <input type="text" id="registerName" placeholder="Your name">
+        </div>
         <div class="form-group">
           <label class="form-label">Email</label>
           <input type="email" id="loginEmail" value="admin@clinicdesk.com">
@@ -22,8 +26,9 @@
         </div>
         <div id="loginError" style="color:var(--destructive);font-size:13px;margin-bottom:8px" class="hidden"></div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-primary" onclick="app.login()" style="width:100%">Sign In</button>
+      <div class="modal-footer" style="flex-direction:column;gap:8px">
+        <button class="btn btn-primary" id="authBtn" onclick="app.login()" style="width:100%">Sign In</button>
+        <button class="btn btn-ghost btn-sm" id="authToggle" onclick="app.toggleAuthMode()" style="width:100%">Don't have an account? Sign Up</button>
       </div>
     </div>
   </div>
@@ -59,6 +64,19 @@
         <button class="sidebar-logout" onclick="app.logout()">Sign out</button>
       </div>
     </aside>
+
+    <!-- Drop overlay for document ingestion -->
+    <div id="dropOverlay" class="drop-overlay hidden">
+      <div class="drop-overlay-content">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <p>Drop document to import</p>
+        <p class="text-sm text-muted">PDF, DOCX, or TXT</p>
+      </div>
+    </div>
 
     <!-- Main content -->
     <div class="main">

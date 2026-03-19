@@ -214,18 +214,24 @@
 ## Phase 9: Integrations & User Setup
 
 ### 9.1 SendGrid Email Integration
-- [ ] Create SendGrid account and get API key
-- [ ] Verify sender email address
-- [ ] Add `SENDGRID_API_KEY` and `SENDGRID_FROM_EMAIL` to `.env`
-- [ ] Test escalation email sending (live)
+- [x] Create SendGrid account and get API key
+- [x] Verify sender email address
+- [x] Add `SENDGRID_API_KEY` and `SENDGRID_FROM_EMAIL` to `.env`
+- [x] Test escalation email sending (live)
+- [x] Email sent to both admin and user on every escalation
+- [x] Clean email structure (short subject, structured body)
 
 ### 9.2 Real Users
-- [ ] Create real users with actual email addresses (migration or admin endpoint)
-- [ ] Test login with real user accounts
+- [x] Create real users with actual email addresses (migration 004)
+- [x] Test login with real user accounts
 
 ### 9.3 Admin Dashboard Notifications
-- [ ] Browser push notifications for new escalations
-- [ ] Live badge counter on Escalations nav item (WebSocket or polling)
+- [x] Real-time notifications via admin WebSocket (`/ws/admin`)
+- [x] Bell icon with red unread badge count in header
+- [x] Notification dropdown with title, message preview, time ago
+- [x] Click notification → navigates to escalation detail
+- [x] Mark as read / mark all read
+- [x] Notifications table + API endpoints (list, count, mark read)
 - [ ] Optional: notification sound on new escalation
 
 ---

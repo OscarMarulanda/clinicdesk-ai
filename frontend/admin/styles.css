@@ -498,3 +498,29 @@ select { appearance: none; cursor: pointer; padding-right: 32px;
 .flex-wrap { flex-wrap: wrap; }
 .items-center { align-items: center; }
 .hidden { display: none !important; }
+
+/* Document drop overlay */
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(59, 104, 217, 0.08);
+  border: 3px dashed var(--primary);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.drop-overlay-content {
+  text-align: center;
+  color: var(--primary);
+  font-size: 18px;
+  font-weight: 600;
+}
+.drop-overlay-content svg {
+  margin: 0 auto 12px;
+  display: block;
+}
+.drop-overlay-content .text-sm {
+  font-weight: 400;
+  margin-top: 4px;
+}

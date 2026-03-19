@@ -285,6 +285,76 @@ Update escalation status.
 
 ---
 
+### Notifications
+
+#### `GET /api/admin/notifications`
+
+List recent notifications.
+
+**Query params:**
+- `limit` (int, default 20)
+
+**Response: `200 OK`**
+```json
+{
+  "notifications": [
+    {
+      "id": 1,
+      "type": "escalation",
+      "title": "New Escalation: Billing Dispute",
+      "message": "Patient double-charged, user requesting help...",
+      "reference_id": 5,
+      "reference_type": "escalation",
+      "is_read": false,
+      "created_at": "2026-03-18T15:30:00Z"
+    }
+  ]
+}
+```
+
+#### `GET /api/admin/notifications/count`
+
+Get unread notification count.
+
+**Response: `200 OK`**
+```json
+{ "unread": 3 }
+```
+
+#### `POST /api/admin/notifications/{id}/read`
+
+Mark a single notification as read.
+
+#### `POST /api/admin/notifications/read-all`
+
+Mark all notifications as read.
+
+---
+
+### WebSocket — Admin Notifications
+
+#### `WS /ws/admin`
+
+Real-time push channel for admin dashboards. Server broadcasts events when escalations are created.
+
+**Server → Client:**
+```json
+{
+  "type": "notification",
+  "title": "New Escalation: Billing Dispute",
+  "message": "Patient double-charged...",
+  "reference_id": 5,
+  "reference_type": "escalation"
+}
+```
+
+**Client → Server (keepalive):**
+```
+ping
+```
+
+---
+
 ### Analytics
 
 #### `GET /api/admin/analytics`

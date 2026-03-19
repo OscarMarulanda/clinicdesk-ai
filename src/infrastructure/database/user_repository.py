@@ -46,6 +46,13 @@ class PostgresUserRepository(UserRepositoryBase):
         )
         return [self._row_to_user(row) for row in rows]
 
+    async def list_by_role(self, role: UserRole) -> list[User]:
+        rows = await self._pool.fetch(
+            "SELECT id, email, name, role, password_hash, created_at FROM users WHERE role = $1 ORDER BY id",
+            role.value,
+        )
+        return [self._row_to_user(row) for row in rows]
+
     @staticmethod
     def _row_to_user(row: asyncpg.Record) -> User:
         return User(

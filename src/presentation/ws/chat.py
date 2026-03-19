@@ -112,3 +112,5 @@ async def chat_websocket(websocket: WebSocket):
 
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected: session={session_id}")
+        from src.domain.entities.session import SessionStatus
+        await session_repo.update_status(session_id, SessionStatus.CLOSED)

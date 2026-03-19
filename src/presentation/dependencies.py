@@ -8,6 +8,7 @@ from src.application.interfaces.email_service import EmailServiceInterface
 from src.application.use_cases.authenticate_user import AuthenticateUserUseCase
 from src.application.use_cases.get_analytics import GetAnalyticsUseCase
 from src.application.use_cases.get_sessions import GetSessionsUseCase
+from src.application.use_cases.ingest_document import IngestDocumentUseCase
 from src.application.use_cases.manage_articles import ManageArticlesUseCase
 from src.application.use_cases.manage_escalations import ManageEscalationsUseCase
 from src.application.use_cases.process_chat_message import ProcessChatMessageUseCase
@@ -72,6 +73,17 @@ def get_analytics_use_case(
     pool: asyncpg.Pool = Depends(get_pool),
 ) -> GetAnalyticsUseCase:
     return GetAnalyticsUseCase(pool)
+
+
+def get_ingest_document_use_case(
+    ai_service: AIServiceInterface = Depends(get_ai_service),
+) -> IngestDocumentUseCase:
+    from src.infrastructure.documents.document_extractor import DocumentExtractor
+
+    return IngestDocumentUseCase(
+        document_extractor=DocumentExtractor(),
+        ai_service=ai_service,
+    )
 
 
 def get_auth_use_case(

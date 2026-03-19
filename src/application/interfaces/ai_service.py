@@ -20,3 +20,16 @@ class AIServiceInterface(ABC):
             - usage: dict (token counts)
         """
         ...
+
+    @abstractmethod
+    async def structure_document(
+        self, raw_text: str, filename: str
+    ) -> dict[str, str]:
+        """Structure raw document text into a knowledge base article.
+
+        Returns a dict with:
+            - title: str
+            - category: str (one of the ArticleCategory values)
+            - content: str (clean Markdown)
+        """
+        ...

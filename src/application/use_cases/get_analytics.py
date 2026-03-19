@@ -48,6 +48,22 @@ class GetAnalyticsUseCase:
             """, days)
             avg_messages = float(avg_row["avg_msgs"]) if avg_row["avg_msgs"] else 0.0
 
+            # Cost and token metrics (from session metadata)
+            cost_stats = await conn.fetchrow("""
+                SELECT
+                    COALESCE(SUM((metadata->>'total_cost_usd')::numeric), 0) AS total_cost,
+                    COALESCE(AVG((metadata->>'total_cost_usd')::numeric), 0) AS avg_cost,
+                    COALESCE(SUM((metadata->>'total_input_tokens')::bigint), 0) AS total_input,
+                    COALESCE(SUM((metadata->>'total_output_tokens')::bigint), 0) AS total_output,
+                    COALESCE(AVG(
+                        COALESCE((metadata->>'total_input_tokens')::bigint, 0) +
+                        COALESCE((metadata->>'total_output_tokens')::bigint, 0)
+                    ), 0) AS avg_tokens
+                FROM sessions
+                WHERE created_at >= NOW() - MAKE_INTERVAL(days => $1)
+                AND metadata->>'total_cost_usd' IS NOT NULL
+            """, days)
+
             # Top categories (from knowledge base search patterns via session messages)
             # For now, use article categories as proxy
             top_cats = await conn.fetch("""
@@ -75,6 +91,11 @@ class GetAnalyticsUseCase:
             resolved_escalations=resolved_escalations,
             resolution_rate=round(resolution_rate, 3),
             avg_messages_per_session=round(avg_messages, 1),
+            total_cost_usd=round(float(cost_stats["total_cost"]), 4),
+            avg_cost_per_session=round(float(cost_stats["avg_cost"]), 4),
+            total_input_tokens=int(cost_stats["total_input"]),
+            total_output_tokens=int(cost_stats["total_output"]),
+            avg_tokens_per_session=round(float(cost_stats["avg_tokens"]), 0),
             top_categories=[
                 CategoryCount(category=r["category"], count=r["count"])
                 for r in top_cats

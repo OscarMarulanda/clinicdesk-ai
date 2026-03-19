@@ -28,11 +28,13 @@ class App {
     this.user = JSON.parse(sessionStorage.getItem("admin_user") || "null");
     this.currentTab = "kb";
     this.editingArticleId = null;
+    this._isRegisterMode = false;
 
     if (this.token && this.user) {
       this._showDashboard();
     }
     this._bindNav();
+    this._bindDragDrop();
   }
 
   // ── Auth ──────────────────────────────────────────────
@@ -60,6 +62,71 @@ class App {
         errEl.classList.remove("hidden");
         return;
       }
+      this.token = data.token;
+      this.user = data.user;
+      sessionStorage.setItem("admin_token", data.token);
+      sessionStorage.setItem("admin_user", JSON.stringify(data.user));
+      this._showDashboard();
+    } catch {
+      errEl.textContent = "Connection error";
+      errEl.classList.remove("hidden");
+    }
+  }
+
+  toggleAuthMode() {
+    this._isRegisterMode = !this._isRegisterMode;
+    const nameGroup = document.getElementById("registerNameGroup");
+    const authBtn = document.getElementById("authBtn");
+    const authToggle = document.getElementById("authToggle");
+    const authTitle = document.getElementById("authTitle");
+    const errEl = document.getElementById("loginError");
+    errEl.classList.add("hidden");
+
+    if (this._isRegisterMode) {
+      nameGroup.classList.remove("hidden");
+      authBtn.textContent = "Sign Up";
+      authBtn.setAttribute("onclick", "app.register()");
+      authToggle.textContent = "Already have an account? Sign In";
+      authTitle.textContent = "Create Admin Account";
+      document.getElementById("loginEmail").value = "";
+      document.getElementById("loginPassword").value = "";
+    } else {
+      nameGroup.classList.add("hidden");
+      authBtn.textContent = "Sign In";
+      authBtn.setAttribute("onclick", "app.login()");
+      authToggle.textContent = "Don't have an account? Sign Up";
+      authTitle.textContent = "ClinicDesk Admin";
+      document.getElementById("loginEmail").value = "admin@clinicdesk.com";
+      document.getElementById("loginPassword").value = "demo123";
+    }
+  }
+
+  async register() {
+    const name = document.getElementById("registerName").value.trim();
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+    const errEl = document.getElementById("loginError");
+    errEl.classList.add("hidden");
+
+    if (!name || !email || !password) {
+      errEl.textContent = "All fields are required";
+      errEl.classList.remove("hidden");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, name, password }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        errEl.textContent = data.detail || "Registration failed";
+        errEl.classList.remove("hidden");
+        return;
+      }
+      const data = await res.json();
       this.token = data.token;
       this.user = data.user;
       sessionStorage.setItem("admin_token", data.token);
@@ -232,6 +299,97 @@ class App {
     this._loadKB();
   }
 
+  // ── Document Drag & Drop ─────────────────────────────
+
+  _bindDragDrop() {
+    this._dragCounter = 0;
+    const overlay = document.getElementById("dropOverlay");
+    const dashboard = document.getElementById("dashboard");
+
+    dashboard.addEventListener("dragenter", (e) => {
+      e.preventDefault();
+      this._dragCounter++;
+      if (this._dragCounter === 1) overlay.classList.remove("hidden");
+    });
+
+    dashboard.addEventListener("dragover", (e) => {
+      e.preventDefault();
+    });
+
+    dashboard.addEventListener("dragleave", (e) => {
+      e.preventDefault();
+      this._dragCounter--;
+      if (this._dragCounter <= 0) {
+        this._dragCounter = 0;
+        overlay.classList.add("hidden");
+      }
+    });
+
+    dashboard.addEventListener("drop", (e) => {
+      e.preventDefault();
+      this._dragCounter = 0;
+      overlay.classList.add("hidden");
+
+      const file = e.dataTransfer?.files?.[0];
+      if (file) this._ingestDocument(file);
+    });
+  }
+
+  async _ingestDocument(file) {
+    const ext = file.name.split(".").pop().toLowerCase();
+    if (!["pdf", "docx", "txt"].includes(ext)) {
+      alert("Unsupported file type. Please use PDF, DOCX, or TXT.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert("File too large. Maximum 10MB.");
+      return;
+    }
+
+    // Open article modal in loading state
+    this.editingArticleId = null;
+    document.getElementById("articleModalTitle").textContent = "Importing Document...";
+    document.getElementById("articleTitle").value = "";
+    document.getElementById("articleCategory").value = "scheduling";
+    document.getElementById("articleContent").value = "Extracting and structuring content...";
+    document.getElementById("articleTitle").disabled = true;
+    document.getElementById("articleCategory").disabled = true;
+    document.getElementById("articleContent").disabled = true;
+    document.getElementById("articleSaveBtn").disabled = true;
+    document.getElementById("articleModal").classList.remove("hidden");
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch(`${API}/api/admin/ingest`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${this.token}` },
+        body: formData,
+      });
+
+      if (res.status === 401) { this.logout(); return; }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to process document");
+      }
+
+      const data = await res.json();
+      document.getElementById("articleModalTitle").textContent = "Review Imported Article";
+      document.getElementById("articleTitle").value = data.title || "";
+      document.getElementById("articleCategory").value = data.category || "scheduling";
+      document.getElementById("articleContent").value = data.content || "";
+    } catch (err) {
+      alert("Failed to import document: " + err.message);
+      this.closeArticleModal();
+    } finally {
+      document.getElementById("articleTitle").disabled = false;
+      document.getElementById("articleCategory").disabled = false;
+      document.getElementById("articleContent").disabled = false;
+      document.getElementById("articleSaveBtn").disabled = false;
+    }
+  }
+
   // ── Sessions ──────────────────────────────────────────
 
   async _loadSessions() {
@@ -323,7 +481,7 @@ class App {
               <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
                 <div class="metric-label">Total Cost</div>
                 <div class="metric-value" style="font-size:22px">$${totalCost.toFixed(4)}</div>
-                <div class="metric-sub">Sonnet 4 pricing: $3/M in · $15/M out</div>
+                <div class="metric-sub">Sonnet 4.6 pricing: $3/M in · $15/M out</div>
               </div>
             </div>
           </div>
@@ -478,7 +636,7 @@ class App {
           <div class="card">
             <div class="card-header"><span class="card-title">Escalation Info</span></div>
             <div class="card-content">
-              <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 12px;font-size:14px">
+              <div style="display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 12px;font-size:14px">
                 <span class="text-muted">Reason</span>
                 <span><span class="badge badge-warning">${REASON_LABELS[esc.reason] || esc.reason}</span></span>
 
@@ -486,7 +644,7 @@ class App {
                 <span>${this._statusBadge(esc.status)}</span>
 
                 <span class="text-muted">Assigned To</span>
-                <span>${esc.assigned_to || "—"}</span>
+                <span style="overflow-wrap:anywhere">${esc.assigned_to || "—"}</span>
 
                 <span class="text-muted">Created</span>
                 <span>${this._fmtDate(esc.created_at)}</span>
@@ -496,7 +654,7 @@ class App {
 
                 ${esc.calendar_event_id ? `
                   <span class="text-muted">Calendar Event</span>
-                  <span class="font-mono text-sm">${this._esc(esc.calendar_event_id)}</span>
+                  <span class="font-mono text-sm" style="overflow-wrap:anywhere">${this._esc(esc.calendar_event_id)}</span>
                 ` : ""}
 
                 ${esc.email_sent_at ? `
@@ -594,6 +752,44 @@ class App {
         <div class="metric-card">
           <div class="metric-label">Avg Messages/Session</div>
           <div class="metric-value">${data.avg_messages_per_session.toFixed(1)}</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Cost Overview</span></div>
+          <div class="card-content">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+              <div>
+                <div class="metric-label">Total Spend</div>
+                <div class="metric-value" style="font-size:22px">$${data.total_cost_usd.toFixed(4)}</div>
+              </div>
+              <div>
+                <div class="metric-label">Avg Cost/Session</div>
+                <div class="metric-value" style="font-size:22px">$${data.avg_cost_per_session.toFixed(4)}</div>
+              </div>
+            </div>
+            <div class="metric-sub" style="margin-top:8px">Sonnet 4.6 pricing: $3/M in · $15/M out</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Token Usage</span></div>
+          <div class="card-content">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+              <div>
+                <div class="metric-label">Input Tokens</div>
+                <div class="metric-value" style="font-size:18px">${data.total_input_tokens.toLocaleString()}</div>
+              </div>
+              <div>
+                <div class="metric-label">Output Tokens</div>
+                <div class="metric-value" style="font-size:18px">${data.total_output_tokens.toLocaleString()}</div>
+              </div>
+              <div>
+                <div class="metric-label">Avg/Session</div>
+                <div class="metric-value" style="font-size:18px">${data.avg_tokens_per_session.toLocaleString()}</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

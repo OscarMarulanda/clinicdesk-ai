@@ -49,6 +49,8 @@ class ProcessChatMessageUseCase:
             session = await self._session_repo.create(user_id=user_id)
             session_id = session.id
 
+        self._current_session_id = session_id
+
         # Build conversation history from stored messages
         conversation_history = self._build_history(session.messages)
 
@@ -123,8 +125,8 @@ class ProcessChatMessageUseCase:
             if response["content"]:
                 all_text_parts.append(response["content"])
 
-        # Combine all text from across the tool loop
-        agent_text = "\n\n".join(all_text_parts)
+        # Use the last text response — that's the one meant for the user
+        agent_text = all_text_parts[-1] if all_text_parts else ""
 
         # Save messages to session
         assistant_msg = {
@@ -156,7 +158,7 @@ class ProcessChatMessageUseCase:
         metadata["total_input_tokens"] = metadata.get("total_input_tokens", 0) + total_input_tokens
         metadata["total_output_tokens"] = metadata.get("total_output_tokens", 0) + total_output_tokens
 
-        # Cost calculation (Sonnet 4 pricing: $3/M input, $15/M output)
+        # Cost calculation (Sonnet 4.6 pricing: $3/M input, $15/M output)
         turn_input_cost = total_input_tokens * 3.0 / 1_000_000
         turn_output_cost = total_output_tokens * 15.0 / 1_000_000
         turn_cost = turn_input_cost + turn_output_cost
@@ -199,6 +201,8 @@ class ProcessChatMessageUseCase:
                 return await self._tool_search_kb(tool_input)
             elif tool_name == "get_article":
                 return await self._tool_get_article(tool_input)
+            elif tool_name == "check_availability":
+                return await self._tool_check_availability(tool_input)
             elif tool_name == "escalate_to_human":
                 return await self._tool_escalate(tool_input, session_id)
             elif tool_name == "update_session_notes":
@@ -244,8 +248,112 @@ class ProcessChatMessageUseCase:
             "content": article.content,
         }
 
+    async def _tool_check_availability(self, input: dict[str, Any]) -> Any:
+        """Pure read — checks calendar, returns options, creates nothing."""
+        try:
+            slots = await self._calendar.check_availability(
+                preferred_time=input["preferred_time"],
+            )
+            if not slots:
+                return {
+                    "available_slots": [],
+                    "message": "No available slots found near the requested time. Ask the user for a different time.",
+                }
+            # Store slots in session context for resolution later
+            session = await self._session_repo.get_by_id(self._current_session_id)
+            if session:
+                ctx = session.context
+                ctx["pending_slots"] = slots
+                await self._session_repo.update_context(self._current_session_id, ctx)
+
+            return {
+                "available_slots": [
+                    {"start": s["start"], "end": s["end"]}
+                    for s in slots
+                ],
+                "next_step": (
+                    "Show these available times to the user in a friendly, conversational way. "
+                    "Let them respond naturally. When they choose, call escalate_to_human "
+                    "and pass their choice as confirmed_time using the exact 'start' value "
+                    "from the slot they picked. If the user replies with a time like '4' or "
+                    "'4pm', match it to the closest slot by hour — do NOT interpret bare "
+                    "numbers as option indices."
+                ),
+            }
+        except Exception as e:
+            logger.error(f"Availability check error: {e}")
+            return {"error": str(e)}
+
     async def _tool_escalate(self, input: dict[str, Any], session_id: UUID) -> Any:
-        # 1. Always create the escalation record
+        """Creates everything in one shot: escalation record + calendar event + emails + notification."""
+        reason_labels = {
+            "knowledge_gap": "Knowledge Gap",
+            "user_frustration": "User Frustration",
+            "out_of_scope": "Out of Scope",
+            "billing_dispute": "Billing Dispute",
+            "account_change": "Account Change",
+        }
+        reason_label = reason_labels.get(input["reason"], input["reason"])
+        preferred = input.get("preferred_action", "email")
+        user_email = input.get("user_email")
+        confirmed_time = input.get("confirmed_time")
+
+        # Resolve confirmed_time from stored slots — require check_availability to have been called
+        if confirmed_time and preferred in ("calendar", "both"):
+            session = await self._session_repo.get_by_id(session_id)
+            pending_slots = session.context.get("pending_slots", []) if session else []
+
+            if not pending_slots:
+                return {
+                    "error": "You must call check_availability first before booking a callback. "
+                    "No available slots have been checked yet.",
+                }
+
+            # If already ISO format, validate it matches a pending slot
+            if "T" in confirmed_time:
+                confirmed_start = confirmed_time.split("T")[1][:5]  # HH:MM
+                slot_starts = [s["start"].split("T")[1][:5] for s in pending_slots]
+                if confirmed_start not in slot_starts:
+                    return {
+                        "error": f"The time {confirmed_time} was not one of the available slots. "
+                        f"Available slots: {[s['start'] for s in pending_slots]}. "
+                        f"Please offer these to the user.",
+                    }
+            else:
+                # Try to match by option number
+                stripped = confirmed_time.strip()
+                if stripped.isdigit():
+                    idx = int(stripped) - 1
+                    if 0 <= idx < len(pending_slots):
+                        confirmed_time = pending_slots[idx]["start"]
+                        logger.info(f"Resolved option {idx + 1} to {confirmed_time}")
+
+                # If still not ISO, try to match by hour against available slots
+                if "T" not in confirmed_time:
+                    import re
+                    hour_match = re.search(r'(\d{1,2})', confirmed_time)
+                    if hour_match:
+                        target_hour = int(hour_match.group(1))
+                        if "pm" in confirmed_time.lower() and target_hour < 12:
+                            target_hour += 12
+                        elif target_hour < 7:
+                            target_hour += 12  # assume PM for small numbers
+                        for slot in pending_slots:
+                            slot_hour = int(slot["start"].split("T")[1].split(":")[0])
+                            if slot_hour == target_hour:
+                                confirmed_time = slot["start"]
+                                logger.info(f"Matched hour {target_hour} to slot {confirmed_time}")
+                                break
+
+                # If still unresolved, reject instead of blindly parsing
+                if "T" not in confirmed_time:
+                    return {
+                        "error": f"Could not match '{confirmed_time}' to any available slot. "
+                        f"Available slots: {[s['start'] for s in pending_slots]}. "
+                        f"Please ask the user to pick one of these times.",
+                    }
+
+        # 1. Create escalation record
         escalation = await self._escalation_repo.create(
             session_id=session_id,
             reason=input["reason"],
@@ -255,38 +363,38 @@ class ProcessChatMessageUseCase:
 
         result: dict[str, Any] = {
             "escalation_id": escalation.id,
-            "status": "created",
         }
 
-        preferred = input.get("preferred_action", "email")
-        user_email = input.get("user_email")
-        preferred_time = input.get("preferred_time")
-        reason_labels = {
-            "knowledge_gap": "Knowledge Gap",
-            "user_frustration": "User Frustration",
-            "out_of_scope": "Out of Scope",
-            "billing_dispute": "Billing Dispute",
-            "account_change": "Account Change",
-        }
-        reason_label = reason_labels.get(input["reason"], input["reason"])
-
-        # 2. Schedule callback if requested
-        if preferred in ("calendar", "both") and user_email:
+        # 2. Book calendar event if confirmed_time provided
+        if preferred in ("calendar", "both") and confirmed_time:
             try:
-                event_id = await self._calendar.create_event(
+                cal_result = await self._calendar.create_event(
                     summary="ClinicDesk Support Callback",
                     description=f"Support callback requested.\n\nIssue: {input['summary']}",
-                    attendee_email=user_email,
-                    preferred_time=preferred_time or "next available",
+                    attendee_email=user_email or "",
+                    start_time=confirmed_time,
                 )
-                await self._escalation_repo.set_calendar_event(escalation.id, event_id)
-                result["calendar"] = {"status": "scheduled", "event_id": event_id}
+                await self._escalation_repo.set_calendar_event(
+                    escalation.id, cal_result["event_id"]
+                )
+                result["callback"] = {
+                    "status": "booked",
+                    "scheduled_time": cal_result["scheduled_time"],
+                    "event_id": cal_result["event_id"],
+                    "meet_link": cal_result.get("meet_link", ""),
+                }
             except Exception as e:
-                logger.error(f"Calendar scheduling error: {e}")
-                result["calendar"] = {"status": "error", "message": str(e)}
+                logger.error(f"Calendar booking error: {e}")
+                result["callback"] = {"status": "error", "message": str(e)}
 
-        # 3. Always send email — to support team and to user (if email provided)
+        # 3. Send emails (always)
+        callback_info = result.get("callback", {})
         try:
+            # Notify all admin users
+            from src.domain.entities.user import UserRole
+            admin_users = await self._user_repo.list_by_role(UserRole.ADMIN)
+            admin_emails = [u.email for u in admin_users] if admin_users else [settings.support_team_email]
+
             admin_body = (
                 f"A new escalation has been created and requires attention.\n\n"
                 f"Reason: {reason_label}\n"
@@ -295,53 +403,54 @@ class ProcessChatMessageUseCase:
                 f"--- Summary ---\n\n"
                 f"{input['summary']}\n"
             )
-            success = await self._email.send_email(
-                to_email=settings.support_team_email,
-                subject=f"[ClinicDesk] New Escalation — {reason_label}",
-                body=admin_body,
-            )
-            if success:
-                await self._escalation_repo.set_email_sent(escalation.id)
-            result["email"] = {"status": "sent" if success else "failed"}
-
-            # Also notify the user who escalated
-            if user_email:
-                user_body = (
-                    f"Hi,\n\n"
-                    f"Your support request has been escalated to our team. "
-                    f"Here's a summary of what we have on file:\n\n"
-                    f"Reason: {reason_label}\n"
-                    f"Reference #: {escalation.id}\n\n"
-                    f"--- Summary ---\n\n"
-                    f"{input['summary']}\n\n"
-                    f"A member of our support team will be in touch shortly.\n\n"
-                    f"— ClinicDesk Support"
+            for admin_email in admin_emails:
+                await self._email.send_email(
+                    to_email=admin_email,
+                    subject=f"[ClinicDesk] New Escalation — {reason_label}",
+                    body=admin_body,
                 )
+            await self._escalation_repo.set_email_sent(escalation.id)
+
+            if user_email:
+                callback_section = ""
+                if callback_info.get("status") == "booked":
+                    meet_line = ""
+                    if callback_info.get("meet_link"):
+                        meet_line = f"Join the meeting: {callback_info['meet_link']}\n"
+                    callback_section = (
+                        f"\n--- Callback Details ---\n"
+                        f"Scheduled: {callback_info['scheduled_time']}\n"
+                        f"{meet_line}\n"
+                    )
+
                 await self._email.send_email(
                     to_email=user_email,
                     subject=f"[ClinicDesk] Your support request has been escalated (#{escalation.id})",
-                    body=user_body,
+                    body=(
+                        f"Hi,\n\n"
+                        f"Your support request has been escalated to our team.\n\n"
+                        f"Reason: {reason_label}\n"
+                        f"Reference #: {escalation.id}\n\n"
+                        f"Summary: {input['summary']}\n"
+                        f"{callback_section}"
+                        f"A member of our support team will be in touch shortly.\n\n"
+                        f"— ClinicDesk Support"
+                    ),
                 )
+            result["emails"] = "sent"
         except Exception as e:
             logger.error(f"Email sending error: {e}")
-            result["email"] = {"status": "error", "message": str(e)}
+            result["emails"] = f"error: {e}"
 
-        # 4. Create admin notification
+        # 4. Admin notification + broadcast
         notif_title = f"New Escalation: {reason_label}"
         notif_message = input["summary"][:200]
         try:
             await self._escalation_repo._pool.execute(
                 """INSERT INTO notifications (type, title, message, reference_id, reference_type)
                    VALUES ('escalation', $1, $2, $3, 'escalation')""",
-                notif_title,
-                notif_message,
-                escalation.id,
+                notif_title, notif_message, escalation.id,
             )
-        except Exception as e:
-            logger.error(f"Notification creation error: {e}")
-
-        # Push to connected admin dashboards in real time
-        try:
             from src.presentation.ws.admin import broadcast_to_admins
             await broadcast_to_admins({
                 "type": "notification",
@@ -351,9 +460,10 @@ class ProcessChatMessageUseCase:
                 "reference_type": "escalation",
             })
         except Exception as e:
-            logger.error(f"Admin broadcast error: {e}")
+            logger.error(f"Notification error: {e}")
 
-        result["message"] = "Escalation created. The support team has been notified."
+        result["status"] = "complete"
+        result["message"] = "Escalation created, emails sent, and callback booked (if requested). You can now confirm everything to the user."
         return result
 
     async def _tool_update_notes(
