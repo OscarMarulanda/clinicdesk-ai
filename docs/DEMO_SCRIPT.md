@@ -41,22 +41,20 @@
 
 Login: `clinicdeskai@gmail.com` / `odmb7750` (or create your own account via Sign Up)
 
-**Part A — Break it:**
-1. Go to **Knowledge Base** tab
-2. Search for **"cancellation"** — find and **delete** any article about cancellation policies
-3. Go to the **Chat Widget** and ask: **"What's the cancellation fee?"**
-   - The agent can no longer find it — it offers to escalate
+**Part A — Show the gap:**
+1. Go to the **Chat Widget** and ask: **"What's the no-show fee?"** or **"What's our cancellation fee policy?"**
+   - The KB has no article about cancellation/no-show fees — the agent won't find an answer and will offer to escalate
 
-**Part B — Fix it with drag-and-drop:**
-4. Download `docs/demo_cancellation_policy.pdf` from the repo (or use the file locally)
-5. Drag the PDF onto the **Admin Dashboard** — a blue drop overlay appears
-6. Release it — the AI extracts the text, structures it as a KB article, and opens a review modal
-7. Review the title, category, and content — edit if needed
-8. Click **Save Article**
+**Part B — Fill the gap with drag-and-drop:**
+2. Open the **Admin Dashboard** → Knowledge Base tab
+3. Drag `docs/demo_cancellation_policy.pdf` onto the dashboard — a blue drop overlay appears
+4. Release it — the AI extracts the text, structures it as a KB article, and opens a review modal
+5. Review the title, category, and content — edit if needed
+6. Click **Save Article**
 
-**Part C — Verify it works:**
-9. Go back to the **Chat Widget** and ask: **"What's the cancellation fee?"**
-   - The agent now answers from the article you just imported
+**Part C — Verify the loop is closed:**
+7. Go back to the **Chat Widget** and ask the same question: **"What's the no-show fee?"**
+   - The agent now answers from the article you just imported — no code changes, no restart
 
 **Bonus:** Try the same flow with `docs/demo_billing_reconciliation.pdf` — ask **"How do I do end-of-day reconciliation?"** before and after importing it
 
