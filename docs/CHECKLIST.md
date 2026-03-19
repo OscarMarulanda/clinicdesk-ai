@@ -275,6 +275,11 @@
 
 ## Phase 11: Future Enhancements
 
+### 11.0 Human-in-the-Loop
+- [ ] Escalation approval gate: create in "pending_approval" status, admin approves before calendar/email fires
+- [ ] Admin approval UI in escalation detail (approve/reject buttons, real-time via WebSocket)
+- [ ] Article draft status: new/ingested articles start as drafts, not searchable until admin publishes
+
 ### 11.1 Search Quality
 - [ ] Test edge case queries and measure recall
 - [ ] Query expansion / fallback to broader search

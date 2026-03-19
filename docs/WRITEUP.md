@@ -28,6 +28,6 @@ ClinicDesk AI is a conversational support agent that sits inside the practice ma
 
 ## What I'd Build Next
 
+- **Human-in-the-loop for escalations**: Currently, escalations fire immediately — calendar event and emails go out the moment the agent triggers one. The next step is an approval gate: escalations would be created in "pending_approval" status, the admin gets a real-time notification, and only after they approve does the callback get booked and emails sent. The infrastructure is already there (admin WebSocket, escalation status management, notification system) — it's a workflow change, not an architecture change.
 - **Prompt caching**: The system prompt and knowledge base context are identical across turns — caching would cut input token costs significantly at scale
 - **Knowledge gap analytics**: Auto-detect which topics trigger the most escalations and surface them to admins as content priorities, closing the feedback loop faster
-- **Vector search**: pgvector for ingesting unstructured documents (PDFs, product manuals) alongside the structured knowledge base
