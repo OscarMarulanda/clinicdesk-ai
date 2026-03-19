@@ -112,7 +112,7 @@
 
 ### 4.3 Session Metrics Tracking
 - [x] Per-turn token counts (input/output)
-- [x] Per-turn cost calculation (Sonnet 4 pricing)
+- [x] Per-turn cost calculation (Sonnet 4.6 pricing)
 - [x] Cumulative session cost
 - [x] Per-turn tool call log
 - [x] Aggregate tool call counts per session
@@ -140,7 +140,9 @@
 - [x] Single `escalate_to_human` tool creates DB record + calendar event + email
 - [x] Agent confirms to user with details
 - [x] Google Calendar integration verified working (service account)
-- [x] SendGrid email integration (stub — awaiting API key)
+- [x] SendGrid email integration (live)
+- [x] Defensive calendar booking: mandatory availability check, slot validation, re-verify before insert
+- [x] Timezone-safe availability checks (convert to local tz via zoneinfo)
 
 ---
 
@@ -176,7 +178,9 @@
 - [x] Knowledge Base tab: list + search/filter + create/edit/delete via modal
 - [x] Sessions tab: list + transcript viewer + metrics (tools, tokens, cost, per-turn breakdown)
 - [x] Escalations tab: list + detail view with transcript + status management
-- [x] Analytics tab: metric cards + top categories + escalation reasons + period selector
+- [x] Analytics tab: metric cards + cost/token analytics + top categories + escalation reasons + period selector
+- [x] Drag-and-drop document ingestion: PDF/DOCX/TXT → AI structures as KB article → review modal
+- [x] Admin registration (sign-up from login screen)
 - [ ] Responsive layout
 
 ### 6.5 Public API
@@ -207,7 +211,8 @@
 ### 8.2 Documentation & Delivery
 - [x] README with setup instructions
 - [x] Write-up (half page to one page)
-- [ ] Demo script tested end-to-end
+- [x] Demo script with 5 walkthroughs (docs/DEMO_SCRIPT.md)
+- [x] Sample PDF documents for demo (cancellation policy, billing reconciliation)
 
 ---
 
@@ -218,7 +223,7 @@
 - [x] Verify sender email address
 - [x] Add `SENDGRID_API_KEY` and `SENDGRID_FROM_EMAIL` to `.env`
 - [x] Test escalation email sending (live)
-- [x] Email sent to both admin and user on every escalation
+- [x] Email sent to all admin users and user on every escalation
 - [x] Clean email structure (short subject, structured body)
 
 ### 9.2 Real Users
@@ -239,12 +244,13 @@
 ## Phase 10: Production Readiness
 
 ### 10.1 Deployment
-- [ ] Choose platform (Railway / Render / Fly.io)
-- [ ] Managed PostgreSQL setup
-- [ ] Environment variables configured (secrets, API keys)
-- [ ] Google `credentials.json` → base64-encoded env var
-- [ ] HTTPS / SSL
-- [ ] Domain name (optional)
+- [x] Choose platform: Fly.io (shortest cold start for free tier)
+- [x] Managed PostgreSQL: Supabase (free tier, us-west-2)
+- [x] Environment variables configured via `fly secrets`
+- [x] Google `credentials.json` → `GOOGLE_CREDENTIALS_JSON` env var, written to file at startup
+- [x] HTTPS / SSL (Fly.io automatic)
+- [x] Dockerfile + fly.toml
+- [ ] Custom domain (optional)
 
 ### 10.2 Desktop App Embedding
 - [ ] Research how target macOS practice software handles plugins / help panels
@@ -253,8 +259,8 @@
 - [ ] Alternative: standalone Electron/Tauri wrapper if web view not available
 
 ### 10.3 Session Management
-- [ ] Auto-close sessions after inactivity (30 min timeout)
-- [ ] Session close cleanup (update status, finalize metadata)
+- [x] Auto-close sessions on WebSocket disconnect
+- [x] Stale session cleanup on server startup (30 min inactivity threshold)
 
 ### 10.4 Rate Limiting
 - [ ] Rate limit WebSocket messages (per session, per IP)

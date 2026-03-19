@@ -77,6 +77,7 @@ ClinicDesk AI is an AI-powered customer support agent for clinic staff (office m
 │  │  │ Repositories  │  │ - ClaudeAIService           │  │ │
 │  │  │ (asyncpg)     │  │ - GoogleCalendarService     │  │ │
 │  │  │               │  │ - SendGridEmailService      │  │ │
+│  │  │               │  │ - DocumentExtractor          │  │ │
 │  │  └──────────────┘  └────────────────────────────┘  │ │
 │  │  ┌──────────────────────────────────────────────┐  │ │
 │  │  │ Config / Settings                             │  │ │
@@ -151,9 +152,10 @@ src/
 │   │   └── analytics.py         # AnalyticsResponse
 │   └── interfaces/
 │       ├── __init__.py
-│       ├── ai_service.py        # ABC for AI/LLM interaction
-│       ├── calendar_service.py  # ABC for calendar integration
-│       └── email_service.py     # ABC for email sending
+│       ├── ai_service.py            # ABC for AI/LLM interaction
+│       ├── calendar_service.py      # ABC for calendar integration
+│       ├── document_extractor.py    # ABC for document text extraction
+│       └── email_service.py         # ABC for email sending
 │
 ├── infrastructure/
 │   ├── __init__.py
@@ -176,6 +178,9 @@ src/
 │   ├── email/
 │   │   ├── __init__.py
 │   │   └── sendgrid_service.py  # implements EmailServiceInterface
+│   ├── documents/
+│   │   ├── __init__.py
+│   │   └── document_extractor.py  # pymupdf/python-docx text extraction
 │   └── config.py                # Settings, env var loading
 │
 ├── presentation/
@@ -261,13 +266,13 @@ Agent can't answer → escalates → admin sees gap
 | Database | PostgreSQL | 16+ |
 | Validation | Pydantic | 2.12.5 |
 | AI SDK | anthropic | ~0.85.0 |
-| AI Model | Claude Sonnet 4 | claude-sonnet-4-20250514 |
+| AI Model | Claude Sonnet 4.6 | claude-sonnet-4-6 |
 | Email | SendGrid | 6.x |
 | Calendar | google-api-python-client | latest |
 | Frontend widget | Vanilla HTML/CSS/JS | — |
 | Frontend admin | Tailwind CSS + vanilla JS | — |
 
-> **Note on AI model**: The spec targets `claude-sonnet-4-20250514`. Newer models (Sonnet 4.5, Sonnet 4.6) are available with improved tool calling. We can upgrade the model string with no code changes.
+> **Deployment**: Fly.io (sjc region) + Supabase PostgreSQL (us-west-2). Google credentials passed as env var, written to file at startup.
 
 ## Key Architectural Decisions
 

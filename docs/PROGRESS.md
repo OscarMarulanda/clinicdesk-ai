@@ -159,3 +159,46 @@ Each entry records: date, what was completed, any deviations from the plan, and 
 - Notifications use WebSocket push instead of polling (user requested instant updates)
 
 **Next:** Deployment, desktop embedding research, session management, prompt caching.
+
+---
+
+## 2026-03-19 — Double-Booking Fix, Document Ingestion, Deployment
+
+**Completed:**
+- **Fixed calendar double-booking** (3 layers of defense):
+  1. System prompt enforces mandatory check → confirm → book flow
+  2. `_tool_escalate` rejects bookings if `check_availability` wasn't called (validates via session `pending_slots`)
+  3. `create_event` re-verifies slot is free with real-time Google Calendar query before inserting
+- **Fixed timezone bug** in availability checks: events returned in UTC were compared naively against local times — now properly converted via `zoneinfo.ZoneInfo("America/Bogota")`
+- **Removed false availability fallback**: `check_availability` was returning the requested time as "available" when no slots existed
+- **Progressive calendar event creation**: tries attendees + Meet → no attendees → no Meet (handles service account limitations gracefully)
+- **Drag-and-drop document ingestion**: admin drops PDF/DOCX/TXT anywhere on dashboard → text extracted (pymupdf/python-docx) → Claude structures as KB article → review modal → save
+- **Admin registration**: sign-up flow on login screen, new admins get escalation emails automatically
+- **Escalation emails to all admins**: queries `users WHERE role = 'admin'` instead of single hardcoded email
+- **Cost and token analytics**: total spend, avg cost/session, input/output tokens, avg tokens/session on Analytics tab
+- **Session auto-close**: sessions marked closed on WebSocket disconnect + stale cleanup on startup
+- **Deployed to Fly.io**: Dockerfile, fly.toml, Supabase PostgreSQL (free tier), SSL, secrets configured
+- **Migrated local data to Supabase**: 5 users, 60 sessions, 41 escalations, 32 notifications
+- **Write-up updated**: added real integrations, double-booking story, tradeoffs section, trimmed "what's next"
+- **Demo script**: 5 walkthroughs covering all features + sample PDF documents
+
+**New dependencies:** pymupdf >= 1.25.0, python-docx >= 1.1.0
+
+**New files:**
+- `Dockerfile`, `fly.toml`, `.dockerignore` — Fly.io deployment
+- `src/application/interfaces/document_extractor.py` — ABC for text extraction
+- `src/infrastructure/documents/document_extractor.py` — pymupdf/python-docx implementation
+- `src/application/use_cases/ingest_document.py` — orchestrates extraction + AI structuring
+- `src/presentation/api/ingest.py` — `POST /api/admin/ingest` endpoint
+- `docs/DEMO_SCRIPT.md` — demo walkthrough for interview
+- `docs/demo_cancellation_policy.pdf`, `docs/demo_billing_reconciliation.pdf` — sample documents
+
+**Deviations:**
+- Google Meet link creation failed (service account limitation on personal Gmail) — progressive fallback handles it gracefully
+- Supabase direct connection not reachable from IPv4 networks — switched to Session Pooler with `statement_cache_size=0`
+- Fly.io region changed from gru (São Paulo) to sjc (San Jose) to reduce DB latency
+
+**Live URLs:**
+- Chat widget: https://clinicdesk-ai.fly.dev/static/widget/demo.html
+- Admin dashboard: https://clinicdesk-ai.fly.dev/static/admin/
+- API docs: https://clinicdesk-ai.fly.dev/docs

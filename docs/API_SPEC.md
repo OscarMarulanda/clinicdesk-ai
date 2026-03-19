@@ -3,7 +3,8 @@
 ## Base URL
 
 ```
-http://localhost:8000
+https://clinicdesk-ai.fly.dev  (production)
+http://localhost:8000           (local)
 ```
 
 ## Authentication
@@ -355,6 +356,31 @@ ping
 
 ---
 
+### Document Ingestion
+
+#### `POST /api/admin/ingest`
+
+Upload a document (PDF, DOCX, TXT) and have AI structure it as a knowledge base article.
+
+**Content-Type:** `multipart/form-data`
+
+**Body:** `file` — the document file (max 10MB)
+
+**Response: `200 OK`**
+```json
+{
+  "title": "Appointment Cancellation Policy",
+  "category": "scheduling",
+  "content": "## Purpose\n\nThis policy outlines..."
+}
+```
+
+**Error responses:**
+- `400` — unsupported file type or file too large
+- `422` — could not extract text or structure document
+
+---
+
 ### Analytics
 
 #### `GET /api/admin/analytics`
@@ -373,8 +399,12 @@ Get aggregated analytics.
   "escalation_rate": 0.073,
   "resolved_escalations": 15,
   "resolution_rate": 0.833,
-  "avg_session_duration_seconds": 420,
   "avg_messages_per_session": 8.5,
+  "total_cost_usd": 1.2345,
+  "avg_cost_per_session": 0.0050,
+  "total_input_tokens": 412000,
+  "total_output_tokens": 18500,
+  "avg_tokens_per_session": 1755,
   "top_categories": [
     { "category": "insurance_claims", "count": 67 },
     { "category": "billing_coding", "count": 52 },
@@ -395,12 +425,12 @@ Get aggregated analytics.
 
 #### `POST /api/auth/login`
 
-Simple login for demo.
+Login for admin users.
 
 **Request body:**
 ```json
 {
-  "email": "admin@clinicdesk.com",
+  "email": "clinicdeskai@gmail.com",
   "password": "demo123"
 }
 ```
@@ -411,12 +441,29 @@ Simple login for demo.
   "token": "eyJhbGciOi...",
   "user": {
     "id": 1,
-    "email": "admin@clinicdesk.com",
+    "email": "clinicdeskai@gmail.com",
     "name": "Admin User",
     "role": "admin"
   }
 }
 ```
+
+#### `POST /api/auth/register`
+
+Create a new admin account.
+
+**Request body:**
+```json
+{
+  "email": "newadmin@example.com",
+  "name": "New Admin",
+  "password": "securepassword"
+}
+```
+
+**Response: `200 OK`** — same shape as login response
+
+**Error: `409 Conflict`** — email already registered
 
 ---
 

@@ -16,12 +16,18 @@
 | uvicorn | 0.42.0 | ASGI server |
 | asyncpg | 0.31.0 | PostgreSQL async driver |
 | pydantic | 2.12.5 | Data validation |
-| anthropic | ~0.85.0 | Claude API SDK |
-| sendgrid | 6.x | Email sending |
-| google-api-python-client | latest | Google Calendar API |
-| google-auth-oauthlib | latest | Google OAuth |
-| python-dotenv | latest | Environment variable loading |
-| websockets | latest | WebSocket support (FastAPI built-in) |
+| pydantic-settings | 2.13.1 | Settings management |
+| anthropic | 0.85.0 | Claude API SDK |
+| sendgrid | 6.12.5 | Email sending |
+| google-api-python-client | >= 2.160.0 | Google Calendar API |
+| google-auth-oauthlib | >= 1.2.1 | Google OAuth |
+| google-auth-httplib2 | >= 0.2.0 | Google auth transport |
+| python-dotenv | >= 1.1.0 | Environment variable loading |
+| python-multipart | >= 0.0.20 | File upload support |
+| bcrypt | 5.0.0 | Password hashing |
+| PyJWT | 2.12.1 | JWT tokens |
+| pymupdf | >= 1.25.0 | PDF text extraction |
+| python-docx | >= 1.1.0 | DOCX text extraction |
 
 ## Environment Variables
 
@@ -131,3 +137,27 @@ make migrate    # Run all migrations
 make seed       # Seed knowledge base and demo data
 make test       # Run tests
 ```
+
+## Deployment (Fly.io + Supabase)
+
+### Production Setup
+
+1. Install Fly CLI: `brew install flyctl`
+2. Authenticate: `fly auth login`
+3. Create app: `fly launch --no-deploy --name clinicdesk-ai --region sjc`
+4. Set secrets:
+```bash
+fly secrets set \
+  DATABASE_URL="postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres" \
+  ANTHROPIC_API_KEY="sk-ant-..." \
+  SENDGRID_API_KEY="SG...." \
+  APP_SECRET_KEY="$(openssl rand -hex 32)" \
+  GOOGLE_CREDENTIALS_JSON="$(cat credentials.json)"
+```
+5. Deploy: `fly deploy`
+
+### Notes
+- The Dockerfile writes `GOOGLE_CREDENTIALS_JSON` to a file at startup
+- Migrations run automatically on each deploy
+- SSL is enabled for database connections in production (`APP_ENV=production`)
+- Supabase Session Pooler requires `statement_cache_size=0` (configured automatically)

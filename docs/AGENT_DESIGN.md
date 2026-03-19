@@ -14,8 +14,7 @@ The agent is a single Claude-powered conversational AI with tool calling capabil
 
 ## Model
 
-- **Primary**: `claude-sonnet-4-20250514` (Claude Sonnet 4)
-- **Upgrade path**: Can swap to Sonnet 4.5/4.6 by changing model ID — no code changes needed
+- **Primary**: `claude-sonnet-4-6` (Claude Sonnet 4.6)
 - Tool calling is built-in to all Claude 4 models
 
 ## System Prompt
@@ -111,39 +110,36 @@ Retrieves the full content of a specific article.
 }
 ```
 
-### 3. escalate_to_human
+### 3. check_availability
 
-Creates an escalation record AND handles callback scheduling + email notification in a single call. This is the only tool needed for escalations — calendar and email are triggered internally based on `preferred_action`.
+Checks the support team's calendar for available callback slots. Read-only — does NOT create anything.
+
+```json
+{
+  "name": "check_availability",
+  "input_schema": {
+    "properties": {
+      "preferred_time": { "type": "string", "description": "The user's preferred callback time" }
+    },
+    "required": ["preferred_time"]
+  }
+}
+```
+
+### 4. escalate_to_human
+
+Creates an escalation record AND handles callback scheduling + email notification in a single call. **Must call `check_availability` first** if booking a callback — the backend enforces this via session state validation.
 
 ```json
 {
   "name": "escalate_to_human",
-  "description": "Escalate the conversation to a human support representative. This is the ONLY tool to use for escalations — it creates the escalation record AND handles scheduling a callback and/or sending an email to the support team based on the user's preference.",
   "input_schema": {
-    "type": "object",
     "properties": {
-      "reason": {
-        "type": "string",
-        "enum": ["knowledge_gap", "user_frustration", "out_of_scope", "billing_dispute", "account_change"],
-        "description": "Why this conversation needs human intervention"
-      },
-      "summary": {
-        "type": "string",
-        "description": "A concise summary of the issue and what has been attempted so far"
-      },
-      "preferred_action": {
-        "type": "string",
-        "enum": ["calendar", "email", "both"],
-        "description": "How to notify the support team — based on user preference"
-      },
-      "user_email": {
-        "type": "string",
-        "description": "The user's email address — required if preferred_action is 'calendar' or 'both'"
-      },
-      "preferred_time": {
-        "type": "string",
-        "description": "The user's preferred callback time (e.g., 'today after 2pm', 'tomorrow morning') — used when preferred_action is 'calendar' or 'both'"
-      }
+      "reason": { "type": "string", "enum": ["knowledge_gap", "user_frustration", "out_of_scope", "billing_dispute", "account_change"] },
+      "summary": { "type": "string" },
+      "preferred_action": { "type": "string", "enum": ["calendar", "email", "both"] },
+      "user_email": { "type": "string" },
+      "confirmed_time": { "type": "string", "description": "Exact 'start' value from check_availability slot" }
     },
     "required": ["reason", "summary", "preferred_action"]
   }
@@ -152,7 +148,7 @@ Creates an escalation record AND handles callback scheduling + email notificatio
 
 > **Design decision (2026-03-18):** Originally there were 3 separate tools: `escalate_to_human`, `schedule_callback`, and `send_escalation_email`. The agent would sometimes call `schedule_callback` without first calling `escalate_to_human`, resulting in missing escalation records. Fused all three into a single `escalate_to_human` tool that internally handles calendar + email based on `preferred_action`. This eliminates the risk of the agent skipping the escalation record.
 
-### 4. update_session_notes
+### 5. update_session_notes
 
 Updates the agent's internal scratchpad for context tracking.
 
@@ -173,7 +169,7 @@ Updates the agent's internal scratchpad for context tracking.
 }
 ```
 
-### 5. get_user_info
+### 6. get_user_info
 
 Returns user profile and plan information.
 
@@ -194,7 +190,7 @@ Returns user profile and plan information.
 }
 ```
 
-### 6. list_categories
+### 7. list_categories
 
 Returns available knowledge base categories.
 
@@ -267,3 +263,6 @@ _This section will be updated as we test and tune the system prompt._
 | 2026-03-17 | Initial prompt | Baseline |
 | 2026-03-18 | Added instruction to always call escalate_to_human first | Agent was skipping escalation record and calling schedule_callback directly |
 | 2026-03-18 | Fused escalation tools into single escalate_to_human | Eliminated the skip-record risk entirely — single tool handles record + calendar + email |
+| 2026-03-19 | Added mandatory callback booking flow to system prompt | Agent was skipping check_availability or re-checking after user confirmed a slot |
+| 2026-03-19 | Added check_availability tool (read-only) | Separated slot checking from booking — backend enforces check-before-book via session state |
+| 2026-03-19 | Updated tool result instruction for slot matching | Agent was interpreting "4" as option 4 instead of 4pm — now matches by hour |
