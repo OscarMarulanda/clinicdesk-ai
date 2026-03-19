@@ -33,33 +33,32 @@
 
 ---
 
-## Demo 2: Admin Dashboard — Knowledge Base Feedback Loop
+## Demo 2: Knowledge Base Feedback Loop + Document Ingestion
 
-> Shows: the system improves over time without code changes
+> Shows: the system improves over time without code changes, and AI-powered document ingestion
 
 **Admin Dashboard** (https://clinicdesk-ai.fly.dev/static/admin/)
 
 Login: `clinicdeskai@gmail.com` / `odmb7750` (or create your own account via Sign Up)
 
+**Part A — Break it:**
 1. Go to **Knowledge Base** tab
-2. Find the article **"How to Submit Insurance Pre-Authorizations"** and **delete** it
-3. Go back to the **Chat Widget** and ask: **"How do I submit a pre-authorization?"**
+2. Search for **"cancellation"** — find and **delete** any article about cancellation policies
+3. Go to the **Chat Widget** and ask: **"What's the cancellation fee?"**
    - The agent can no longer find it — it offers to escalate
-4. Go back to the **Admin Dashboard** → Knowledge Base → **+ New Article**
-   - Add the article back (title, category: Insurance & Claims, content)
-5. Ask the same question in the chat — the agent now answers it again
 
----
+**Part B — Fix it with drag-and-drop:**
+4. Download `docs/demo_cancellation_policy.pdf` from the repo (or use the file locally)
+5. Drag the PDF onto the **Admin Dashboard** — a blue drop overlay appears
+6. Release it — the AI extracts the text, structures it as a KB article, and opens a review modal
+7. Review the title, category, and content — edit if needed
+8. Click **Save Article**
 
-## Demo 3: Drag-and-Drop Document Ingestion
+**Part C — Verify it works:**
+9. Go back to the **Chat Widget** and ask: **"What's the cancellation fee?"**
+   - The agent now answers from the article you just imported
 
-> Shows: AI-powered content pipeline from raw documents to structured KB articles
-
-1. In the **Admin Dashboard**, drag any PDF, DOCX, or TXT file onto the page
-2. A drop overlay appears — release the file
-3. The AI extracts the text, structures it as a KB article, and opens a review modal
-4. Review the title, category, and content — edit if needed
-5. Click **Save Article** — it's immediately searchable by the chat agent
+**Bonus:** Try the same flow with `docs/demo_billing_reconciliation.pdf` — ask **"How do I do end-of-day reconciliation?"** before and after importing it
 
 ---
 
