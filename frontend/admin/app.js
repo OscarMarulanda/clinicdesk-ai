@@ -197,8 +197,9 @@ class App {
 
   // ── Knowledge Base ────────────────────────────────────
 
-  async _loadKB(search = "", category = "") {
-    const params = new URLSearchParams({ per_page: "100" });
+  async _loadKB(search = "", category = "", page = 1) {
+    const perPage = 20;
+    const params = new URLSearchParams({ per_page: String(perPage), page: String(page) });
     if (category) params.set("category", category);
     const data = await this._api(`/api/admin/articles?${params}`);
     if (!data) return;
@@ -208,6 +209,10 @@ class App {
       const q = search.toLowerCase();
       articles = articles.filter(a => a.title.toLowerCase().includes(q));
     }
+
+    this._kbPage = page;
+    this._kbSearch = search;
+    this._kbCategory = category;
 
     document.getElementById("headerActions").innerHTML =
       `<button class="btn btn-primary" onclick="app.openArticleModal()">+ New Article</button>`;
@@ -245,17 +250,22 @@ class App {
           </table>
         </div>
       </div>
+      ${this._renderPagination(page, perPage, data.total, "app._kbGoToPage")}
     `;
 
     document.getElementById("kbSearch").addEventListener("input", (e) => {
       clearTimeout(this._kbDebounce);
       this._kbDebounce = setTimeout(() => {
-        this._loadKB(e.target.value, document.getElementById("kbCatFilter").value);
+        this._loadKB(e.target.value, document.getElementById("kbCatFilter").value, 1);
       }, 300);
     });
     document.getElementById("kbCatFilter").addEventListener("change", (e) => {
-      this._loadKB(document.getElementById("kbSearch").value, e.target.value);
+      this._loadKB(document.getElementById("kbSearch").value, e.target.value, 1);
     });
+  }
+
+  _kbGoToPage(page) {
+    this._loadKB(this._kbSearch || "", this._kbCategory || "", page);
   }
 
   openArticleModal(article = null) {
@@ -392,14 +402,15 @@ class App {
 
   // ── Sessions ──────────────────────────────────────────
 
-  async _loadSessions() {
-    const data = await this._api("/api/admin/sessions?per_page=100");
+  async _loadSessions(page = 1) {
+    const perPage = 20;
+    const data = await this._api(`/api/admin/sessions?per_page=${perPage}&page=${page}`);
     if (!data) return;
 
     document.getElementById("headerActions").innerHTML = "";
     const content = document.getElementById("mainContent");
 
-    if (data.sessions.length === 0) {
+    if (data.sessions.length === 0 && page === 1) {
       content.innerHTML = `<div class="empty-state"><p>No sessions yet. Start a conversation in the chat widget to see sessions here.</p></div>`;
       return;
     }
@@ -425,6 +436,7 @@ class App {
           </table>
         </div>
       </div>
+      ${this._renderPagination(page, perPage, data.total, "app._loadSessions")}
     `;
   }
 
@@ -547,14 +559,15 @@ class App {
 
   // ── Escalations ───────────────────────────────────────
 
-  async _loadEscalations() {
-    const data = await this._api("/api/admin/escalations?per_page=100");
+  async _loadEscalations(page = 1) {
+    const perPage = 20;
+    const data = await this._api(`/api/admin/escalations?per_page=${perPage}&page=${page}`);
     if (!data) return;
 
     document.getElementById("headerActions").innerHTML = "";
     const content = document.getElementById("mainContent");
 
-    if (data.escalations.length === 0) {
+    if (data.escalations.length === 0 && page === 1) {
       content.innerHTML = `<div class="empty-state"><p>No escalations yet. Escalations appear when the agent hands off to a human.</p></div>`;
       return;
     }
@@ -579,6 +592,7 @@ class App {
           </table>
         </div>
       </div>
+      ${this._renderPagination(page, perPage, data.total, "app._loadEscalations")}
     `;
   }
 
@@ -844,6 +858,21 @@ class App {
     if (!iso) return "";
     const d = new Date(iso);
     return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  }
+
+  _renderPagination(page, perPage, total, onPageChange) {
+    const totalPages = Math.ceil(total / perPage);
+    if (totalPages <= 1) return "";
+    const pages = [];
+    for (let i = 1; i <= totalPages; i++) {
+      pages.push(`<button class="btn btn-sm ${i === page ? "btn-primary" : "btn-ghost"}" onclick="${onPageChange}(${i})">${i}</button>`);
+    }
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0">
+        <span class="text-sm text-muted">Showing ${(page - 1) * perPage + 1}–${Math.min(page * perPage, total)} of ${total}</span>
+        <div style="display:flex;gap:4px">${pages.join("")}</div>
+      </div>
+    `;
   }
 
   _renderMd(text) {
