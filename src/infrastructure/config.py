@@ -10,7 +10,7 @@ class Settings(BaseSettings):
 
     # SendGrid
     sendgrid_api_key: str = ""
-    sendgrid_from_email: str = "support@clinicdesk.com"
+    sendgrid_from_email: str = "oscarmarulandab@gmail.com"
 
     # Google Calendar
     google_credentials_path: str = "./credentials.json"
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     app_secret_key: str = "change-me-in-production"
     app_env: str = "development"
     app_port: int = 8000
-    support_team_email: str = "support@clinicdesk.com"
+    support_team_email: str = "oscarmarulandab@gmail.com"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
