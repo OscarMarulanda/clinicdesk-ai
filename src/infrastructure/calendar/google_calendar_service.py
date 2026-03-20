@@ -99,7 +99,7 @@ class GoogleCalendarService(CalendarServiceInterface):
                 not (candidate_end <= bs or candidate >= be)
                 for bs, be in busy
             )
-            if not conflict and candidate >= datetime.now():
+            if not conflict and candidate >= datetime.now(tz=LOCAL_TZ).replace(tzinfo=None):
                 options.append({
                     "start": candidate.isoformat(),
                     "end": candidate_end.isoformat(),
@@ -129,7 +129,7 @@ class GoogleCalendarService(CalendarServiceInterface):
             parsed_start = self._parse_preferred_time(start_time)
 
         # Safety: fix wrong year (agent sometimes hallucinates past years)
-        now = datetime.now()
+        now = datetime.now(tz=LOCAL_TZ).replace(tzinfo=None)
         if parsed_start.year < now.year:
             parsed_start = parsed_start.replace(year=now.year)
             logger.warning(f"Fixed wrong year in calendar event: {start_time} → {parsed_start.isoformat()}")
@@ -233,7 +233,7 @@ class GoogleCalendarService(CalendarServiceInterface):
     @staticmethod
     def _next_business_slot(dt: datetime) -> datetime:
         """Adjust a datetime to fall within business hours (8am-6pm, Mon-Fri)."""
-        now = datetime.now()
+        now = datetime.now(tz=LOCAL_TZ).replace(tzinfo=None)
         if dt < now:
             dt = now + timedelta(minutes=15)
             dt = dt.replace(minute=(dt.minute // 15) * 15, second=0, microsecond=0)
@@ -254,14 +254,19 @@ class GoogleCalendarService(CalendarServiceInterface):
     @staticmethod
     def _parse_preferred_time(preferred_time: str) -> datetime:
         """Parse natural language time preferences into naive datetime (local time)."""
-        now = datetime.now()
+        now = datetime.now(tz=LOCAL_TZ).replace(tzinfo=None)
 
         lower = preferred_time.lower()
-        if "tomorrow" in lower:
+        # "mañana" means "tomorrow" unless preceded by "por la" / "en la" (= "in the morning")
+        is_tomorrow = "tomorrow" in lower or (
+            "mañana" in lower and "por la" not in lower and "en la" not in lower
+        )
+        if is_tomorrow:
             base = now + timedelta(days=1)
         else:
             base = now
 
+        # Explicit PM/pm/p.m.
         hour_match = re.search(r'(\d{1,2})(?::(\d{2}))?\s*(?:pm|p\.m\.)', lower)
         if hour_match:
             hour = int(hour_match.group(1))
@@ -270,6 +275,7 @@ class GoogleCalendarService(CalendarServiceInterface):
                 hour += 12
             return base.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
+        # Explicit AM/am/a.m.
         hour_match = re.search(r'(\d{1,2})(?::(\d{2}))?\s*(?:am|a\.m\.)', lower)
         if hour_match:
             hour = int(hour_match.group(1))
@@ -278,20 +284,41 @@ class GoogleCalendarService(CalendarServiceInterface):
                 hour = 0
             return base.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
-        after_match = re.search(r'after\s+(\d{1,2})', lower)
+        # "after 3", "después de las 3"
+        after_match = re.search(r'(?:after|después\s+de(?:\s+las)?)\s+(\d{1,2})', lower)
         if after_match:
             hour = int(after_match.group(1))
             if hour < 7:
                 hour += 12
             return base.replace(hour=hour, minute=0, second=0, microsecond=0)
 
-        if "morning" in lower:
+        # Bare number: "at 11", "a las 11", "a las 3:30"
+        bare_match = re.search(r'(?:at|a\s+las?)\s+(\d{1,2})(?::(\d{2}))?', lower)
+        if bare_match:
+            hour = int(bare_match.group(1))
+            minute = int(bare_match.group(2) or 0)
+            # Infer AM/PM from business hours context: 1-7 → PM, 8-12 → AM
+            if hour < 8:
+                hour += 12
+            return base.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+        # Keywords (English and Spanish)
+        if "morning" in lower or ("mañana" in lower and ("por la" in lower or "en la" in lower)):
             return base.replace(hour=10, minute=0, second=0, microsecond=0)
-        elif "afternoon" in lower:
+        elif "afternoon" in lower or "tarde" in lower:
             return base.replace(hour=14, minute=0, second=0, microsecond=0)
-        elif "evening" in lower:
+        elif "evening" in lower or "noche" in lower:
             return base.replace(hour=17, minute=0, second=0, microsecond=0)
-        elif "soon" in lower or "asap" in lower or "now" in lower:
+        elif "soon" in lower or "asap" in lower or "now" in lower or "ya" in lower:
             return now + timedelta(minutes=30)
-        else:
-            return now + timedelta(hours=1)
+
+        # Last resort: bare number anywhere in the string (e.g., "11", "3")
+        bare_num = re.search(r'\b(\d{1,2})\b', lower)
+        if bare_num:
+            hour = int(bare_num.group(1))
+            if 1 <= hour <= 12:
+                if hour < 8:
+                    hour += 12
+                return base.replace(hour=hour, minute=0, second=0, microsecond=0)
+
+        return now + timedelta(hours=1)
