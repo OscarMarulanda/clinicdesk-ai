@@ -12,7 +12,7 @@ COPY . .
 # Startup script: write credentials, run migrations, start server
 RUN printf '#!/bin/sh\n\
 if [ -n "$GOOGLE_CREDENTIALS_JSON" ]; then\n\
-  printf '%s' "$GOOGLE_CREDENTIALS_JSON" > /app/credentials.json\n\
+  python3 -c "import os; open(\"/app/credentials.json\",\"w\").write(os.environ[\"GOOGLE_CREDENTIALS_JSON\"])"\n\
 fi\n\
 python -m src.infrastructure.database.migrate --seed\n\
 exec uvicorn src.main:app --host 0.0.0.0 --port 8080\n' > /app/start.sh && chmod +x /app/start.sh
