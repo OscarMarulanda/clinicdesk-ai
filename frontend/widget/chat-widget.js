@@ -585,9 +585,11 @@
       html = html.replace(/^(\d+\.)\s+(.+)$/gm, "<li><strong>$1</strong> $2</li>");
       html = html.replace(/((?:<li><strong>\d+\.<\/strong>.*<\/li>\n?)+)/g, '<ul class="ol-plain">$1</ul>');
 
-      // Unordered lists
-      html = html.replace(/^[\-\*] (.+)$/gm, "<li>$1</li>");
-      html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, "<ul>$1</ul>");
+      // Unordered lists — use temporary tag to avoid matching ordered items
+      html = html.replace(/^[\-\*] (.+)$/gm, "<uli>$1</uli>");
+      html = html.replace(/((?:<uli>.*<\/uli>\n?)+)/g, (match) => {
+        return "<ul>" + match.replace(/<\/?uli>/g, (t) => t.replace("uli", "li")) + "</ul>";
+      });
 
       // Paragraphs (double newlines)
       html = html.replace(/\n\n/g, "</p><p>");
