@@ -190,7 +190,7 @@
         .message.assistant { align-self: flex-start; }
         .message-content {
           padding: 10px 14px; border-radius: 12px;
-          word-wrap: break-word; white-space: pre-wrap; overflow: hidden;
+          word-wrap: break-word; white-space: pre-wrap;
         }
         .message-content ul, .message-content ol,
         .message-content li { white-space: normal; }
@@ -211,7 +211,7 @@
           font-family: 'SF Mono', Monaco, monospace;
         }
         .message-content ul, .message-content ol {
-          margin: 4px 0; padding-left: 1.2em; list-style-position: inside;
+          margin: 4px 0; padding-left: 20px;
         }
         .message-content li { margin: 2px 0; }
         .message-content h2 { font-size: 15px; font-weight: 600; margin: 8px 0 4px; }
