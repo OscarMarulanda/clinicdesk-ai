@@ -578,12 +578,15 @@
       // Inline code
       html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
 
+      // Ordered lists (must run before unordered to avoid conflicts)
+      html = html.replace(/^\d+\.\s+(.+)$/gm, "<oli>$1</oli>");
+      html = html.replace(/((?:<oli>.*<\/oli>\n?)+)/g, (match) => {
+        return "<ol>" + match.replace(/<\/?oli>/g, (t) => t.replace("oli", "li")) + "</ol>";
+      });
+
       // Unordered lists
       html = html.replace(/^[\-\*] (.+)$/gm, "<li>$1</li>");
       html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, "<ul>$1</ul>");
-
-      // Ordered lists
-      html = html.replace(/^\d+\. (.+)$/gm, "<li>$1</li>");
 
       // Paragraphs (double newlines)
       html = html.replace(/\n\n/g, "</p><p>");
@@ -595,6 +598,8 @@
       html = html.replace(/(<\/h[23]>)<\/p>/g, "$1");
       html = html.replace(/<p>(<ul>)/g, "$1");
       html = html.replace(/(<\/ul>)<\/p>/g, "$1");
+      html = html.replace(/<p>(<ol>)/g, "$1");
+      html = html.replace(/(<\/ol>)<\/p>/g, "$1");
       html = html.replace(/<p>(<table>)/g, "$1");
       html = html.replace(/(<\/table>)<\/p>/g, "$1");
 
