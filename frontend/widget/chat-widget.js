@@ -213,6 +213,9 @@
         .message-content ul, .message-content ol {
           margin: 4px 0; padding-left: 20px;
         }
+        .message-content ul.ol-plain {
+          list-style: none; padding-left: 4px;
+        }
         .message-content li { margin: 2px 0; }
         .message-content h2 { font-size: 15px; font-weight: 600; margin: 8px 0 4px; }
         .message-content h3 { font-size: 14px; font-weight: 600; margin: 6px 0 4px; }
@@ -578,11 +581,9 @@
       // Inline code
       html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
 
-      // Ordered lists (must run before unordered to avoid conflicts)
-      html = html.replace(/^\d+\.\s+(.+)$/gm, "<oli>$1</oli>");
-      html = html.replace(/((?:<oli>.*<\/oli>\n?)+)/g, (match) => {
-        return "<ol>" + match.replace(/<\/?oli>/g, (t) => t.replace("oli", "li")) + "</ol>";
-      });
+      // Ordered lists — keep original numbers as text, render as plain list
+      html = html.replace(/^(\d+\.)\s+(.+)$/gm, "<li><strong>$1</strong> $2</li>");
+      html = html.replace(/((?:<li><strong>\d+\.<\/strong>.*<\/li>\n?)+)/g, '<ul class="ol-plain">$1</ul>');
 
       // Unordered lists
       html = html.replace(/^[\-\*] (.+)$/gm, "<li>$1</li>");
@@ -598,8 +599,6 @@
       html = html.replace(/(<\/h[23]>)<\/p>/g, "$1");
       html = html.replace(/<p>(<ul>)/g, "$1");
       html = html.replace(/(<\/ul>)<\/p>/g, "$1");
-      html = html.replace(/<p>(<ol>)/g, "$1");
-      html = html.replace(/(<\/ol>)<\/p>/g, "$1");
       html = html.replace(/<p>(<table>)/g, "$1");
       html = html.replace(/(<\/table>)<\/p>/g, "$1");
 
