@@ -211,9 +211,9 @@
           font-family: 'SF Mono', Monaco, monospace;
         }
         .message-content ul, .message-content ol {
-          margin: 4px 0; padding-left: 1.5em; list-style-position: outside;
+          margin: 4px 0; padding-left: 1.2em; list-style-position: inside;
         }
-        .message-content li { margin: 2px 0; padding-left: 0.25em; }
+        .message-content li { margin: 2px 0; }
         .message-content h2 { font-size: 15px; font-weight: 600; margin: 8px 0 4px; }
         .message-content h3 { font-size: 14px; font-weight: 600; margin: 6px 0 4px; }
         .message-content table {
