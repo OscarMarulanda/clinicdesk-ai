@@ -12,6 +12,7 @@ class EscalationRepositoryBase(ABC):
         reason: str,
         summary: str,
         assigned_to: str | None = None,
+        user_email: str | None = None,
     ) -> Escalation:
         ...
 

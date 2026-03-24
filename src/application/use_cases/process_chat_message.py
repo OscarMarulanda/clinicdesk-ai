@@ -357,6 +357,7 @@ class ProcessChatMessageUseCase:
             reason=input["reason"],
             summary=input["summary"],
             assigned_to=settings.support_team_email,
+            user_email=user_email,
         )
 
         result: dict[str, Any] = {

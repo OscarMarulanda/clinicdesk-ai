@@ -27,6 +27,7 @@ class Escalation:
     reason: EscalationReason
     summary: str
     status: EscalationStatus
+    user_email: str | None
     assigned_to: str | None
     calendar_event_id: str | None
     email_sent_at: datetime | None

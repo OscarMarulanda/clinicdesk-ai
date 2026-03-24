@@ -16,22 +16,24 @@ class PostgresEscalationRepository(EscalationRepositoryBase):
         reason: str,
         summary: str,
         assigned_to: str | None = None,
+        user_email: str | None = None,
     ) -> Escalation:
         row = await self._pool.fetchrow(
-            """INSERT INTO escalations (session_id, reason, summary, assigned_to)
-               VALUES ($1, $2, $3, $4)
-               RETURNING id, session_id, reason, summary, status, assigned_to,
+            """INSERT INTO escalations (session_id, reason, summary, assigned_to, user_email)
+               VALUES ($1, $2, $3, $4, $5)
+               RETURNING id, session_id, reason, summary, status, user_email, assigned_to,
                          calendar_event_id, email_sent_at, created_at, resolved_at""",
             session_id,
             reason,
             summary,
             assigned_to,
+            user_email,
         )
         return self._row_to_escalation(row)
 
     async def get_by_id(self, escalation_id: int) -> Escalation | None:
         row = await self._pool.fetchrow(
-            """SELECT id, session_id, reason, summary, status, assigned_to,
+            """SELECT id, session_id, reason, summary, status, user_email, assigned_to,
                       calendar_event_id, email_sent_at, created_at, resolved_at
                FROM escalations WHERE id = $1""",
             escalation_id,
@@ -51,7 +53,7 @@ class PostgresEscalationRepository(EscalationRepositoryBase):
                 f"""UPDATE escalations
                     SET status = $1, assigned_to = $2{resolved_clause}
                     WHERE id = $3
-                    RETURNING id, session_id, reason, summary, status, assigned_to,
+                    RETURNING id, session_id, reason, summary, status, user_email, assigned_to,
                               calendar_event_id, email_sent_at, created_at, resolved_at""",
                 status.value,
                 assigned_to,
@@ -62,7 +64,7 @@ class PostgresEscalationRepository(EscalationRepositoryBase):
                 f"""UPDATE escalations
                     SET status = $1{resolved_clause}
                     WHERE id = $2
-                    RETURNING id, session_id, reason, summary, status, assigned_to,
+                    RETURNING id, session_id, reason, summary, status, user_email, assigned_to,
                               calendar_event_id, email_sent_at, created_at, resolved_at""",
                 status.value,
                 escalation_id,
@@ -103,7 +105,7 @@ class PostgresEscalationRepository(EscalationRepositoryBase):
         offset = (page - 1) * per_page
         idx = len(params) + 1
         sql = f"""
-            SELECT id, session_id, reason, summary, status, assigned_to,
+            SELECT id, session_id, reason, summary, status, user_email, assigned_to,
                    calendar_event_id, email_sent_at, created_at, resolved_at
             FROM escalations {where}
             ORDER BY created_at DESC
@@ -123,6 +125,7 @@ class PostgresEscalationRepository(EscalationRepositoryBase):
             reason=EscalationReason(row["reason"]),
             summary=row["summary"],
             status=EscalationStatus(row["status"]),
+            user_email=row.get("user_email"),
             assigned_to=row["assigned_to"],
             calendar_event_id=row["calendar_event_id"],
             email_sent_at=row["email_sent_at"],

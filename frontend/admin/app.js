@@ -657,6 +657,9 @@ class App {
                 <span class="text-muted">Status</span>
                 <span>${this._statusBadge(esc.status)}</span>
 
+                <span class="text-muted">Contact Email</span>
+                <span style="overflow-wrap:anywhere">${esc.user_email || "—"}</span>
+
                 <span class="text-muted">Assigned To</span>
                 <span style="overflow-wrap:anywhere">${esc.assigned_to || "—"}</span>
 

@@ -21,6 +21,7 @@ class EscalationResponse(BaseModel):
     reason: str
     summary: str
     status: str
+    user_email: str | None
     assigned_to: str | None
     calendar_event_id: str | None
     email_sent_at: datetime | None

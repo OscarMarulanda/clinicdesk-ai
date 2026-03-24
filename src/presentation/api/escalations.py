@@ -32,6 +32,7 @@ async def list_escalations(
                 reason=e.reason.value,
                 summary=e.summary,
                 status=e.status.value,
+                user_email=e.user_email,
                 assigned_to=e.assigned_to,
                 calendar_event_id=e.calendar_event_id,
                 email_sent_at=e.email_sent_at,
